@@ -1,5 +1,5 @@
 import json
-from src.utils.logging_config import configure_logger
+from utils.logging_config import configure_logger
 
 logger = configure_logger(__name__)
 

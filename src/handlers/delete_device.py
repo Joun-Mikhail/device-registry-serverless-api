@@ -1,6 +1,6 @@
-from src.repositories.device_repository import DeviceRepository
-from src.utils.logging_config import configure_logger
-from src.utils.response import error, success, not_found, internal_error
+from repositories.device_repository import DeviceRepository
+from utils.logging_config import configure_logger
+from utils.response import error, success, not_found, internal_error
 
 logger = configure_logger(__name__)
 

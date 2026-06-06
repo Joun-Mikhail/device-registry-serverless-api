@@ -1,9 +1,9 @@
 import json
 
-from src.repositories.device_repository import DeviceRepository
-from src.utils.logging_config import configure_logger
-from src.utils.response import error, success, not_found, internal_error
-from src.validation.device_validator import validate_update_payload
+from repositories.device_repository import DeviceRepository
+from utils.logging_config import configure_logger
+from utils.response import error, success, not_found, internal_error
+from validation.device_validator import validate_update_payload
 
 logger = configure_logger(__name__)
 

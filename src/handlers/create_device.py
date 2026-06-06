@@ -1,10 +1,10 @@
 import json
 
-from src.models.device import Device
-from src.repositories.device_repository import DeviceRepository
-from src.utils.logging_config import configure_logger
-from src.utils.response import success, error, internal_error
-from src.validation.device_validator import validate_create_payload
+from models.device import Device
+from repositories.device_repository import DeviceRepository
+from utils.logging_config import configure_logger
+from utils.response import success, error, internal_error
+from validation.device_validator import validate_create_payload
 
 logger = configure_logger(__name__)
 

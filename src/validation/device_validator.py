@@ -1,5 +1,5 @@
 from typing import Tuple, Optional
-from src.models.device import VALID_TYPES, VALID_STATUSES
+from models.device import VALID_TYPES, VALID_STATUSES
 
 
 MAX_NAME_LENGTH = 100

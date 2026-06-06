@@ -1,14 +1,14 @@
 import os
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
 
-from src.models.device import Device
+from models.device import Device
+from utils.logging_config import configure_logger
 
-logger = logging.getLogger(__name__)
+logger = configure_logger(__name__)
 
 
 class DeviceRepository:
@@ -40,10 +40,11 @@ class DeviceRepository:
             raise
 
     def list_all(self) -> list[Device]:
+        # NOTE: Scan reads every item in the table.
+        # Acceptable for dev with < 1,000 items; replace with GSI + Query at scale.
         try:
             response = self._table.scan()
             items = response.get("Items", [])
-            # Handle pagination for large tables
             while "LastEvaluatedKey" in response:
                 response = self._table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
                 items.extend(response.get("Items", []))

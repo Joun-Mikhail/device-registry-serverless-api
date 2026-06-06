@@ -1,6 +1,6 @@
-from src.repositories.device_repository import DeviceRepository
-from src.utils.logging_config import configure_logger
-from src.utils.response import success, internal_error
+from repositories.device_repository import DeviceRepository
+from utils.logging_config import configure_logger
+from utils.response import success, internal_error
 
 logger = configure_logger(__name__)
 
@@ -19,10 +19,8 @@ def handler(event: dict, context) -> dict:
     logger.info("ListDevices invoked request_id=%s", request_id)
 
     try:
-        # NOTE: list_all() uses DynamoDB Scan, which reads every item in the table.
-        # This is acceptable for a development dataset of < 1,000 items.
-        # At production scale, replace with a GSI + Query to avoid full-table reads.
-        # See docs/architecture.md for the proposed GSI design.
+        # NOTE: Uses DynamoDB Scan — acceptable for dev datasets under ~1,000 items.
+        # At scale, replace with a GSI on 'type' or 'status' + Query + pagination.
         devices = _get_repository().list_all()
         return success({"items": [d.to_response() for d in devices], "count": len(devices)})
     except Exception as exc:
