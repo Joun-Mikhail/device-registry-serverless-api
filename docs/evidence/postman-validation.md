@@ -1,31 +1,54 @@
 # Evidence: Postman Endpoint Validation
 
-## What to capture
+## What to capture here
 
-Use the Postman collection at `docs/postman/device-registry.postman_collection.json`
-to validate all five endpoints against the deployed API.
+After deploying the API, use the Postman collection to validate every endpoint and
+replace this file with screenshots of the results.
 
-### Screenshots needed
-
-1. **POST /devices** — 201 Created response with full device JSON body
-2. **GET /devices** — 200 OK with `items` array containing at least one device
-3. **GET /devices/{deviceId}** — 200 OK for an existing device
-4. **GET /devices/{deviceId}** — 404 Not Found for a random UUID
-5. **PATCH /devices/{deviceId}** — 200 OK showing only the updated field changed
-6. **POST /devices** with missing `name` — 400 Bad Request with `error` message
-7. **DELETE /devices/{deviceId}** — 200 OK confirmation message
-8. **GET /devices/{deviceId}** (same ID as above) — 404 confirming deletion
+---
 
 ## Setup
 
-1. Import `docs/postman/device-registry.postman_collection.json` into Postman
-2. Set the `base_url` collection variable to your deployed API URL:
+1. Open Postman.
+2. Click **Import** → select `docs/postman/device-registry.postman_collection.json`.
+3. Click the collection name → **Variables** tab.
+4. Set `base_url` to your deployed API URL:
    ```
    https://<api-id>.execute-api.eu-central-1.amazonaws.com/dev
    ```
-3. Run requests in the order above
-4. Screenshot each response panel showing status code + body
+5. Save.
 
-## Placeholder
+---
 
-Replace this file with the actual screenshots once the API is deployed.
+## Screenshots to take (in order)
+
+Run each request in this sequence. Each one auto-populates `{{device_id}}` for
+subsequent requests.
+
+| # | Screenshot filename | Request | Expected status |
+|---|---|---|---|
+| 1 | `postman-01-create-201.png` | POST /devices | 201 Created |
+| 2 | `postman-02-list-200.png` | GET /devices | 200 OK |
+| 3 | `postman-03-get-200.png` | GET /devices/{{device_id}} | 200 OK |
+| 4 | `postman-04-get-404.png` | GET /devices/00000000-... | 404 Not Found |
+| 5 | `postman-05-patch-200.png` | PATCH /devices/{{device_id}} | 200 OK |
+| 6 | `postman-06-create-400-name.png` | POST /devices (missing name) | 400 Bad Request |
+| 7 | `postman-07-create-400-type.png` | POST /devices (invalid type) | 400 Bad Request |
+| 8 | `postman-08-delete-200.png` | DELETE /devices/{{device_id}} | 200 OK |
+| 9 | `postman-09-get-404-deleted.png` | GET /devices/{{device_id}} | 404 Not Found |
+
+For each screenshot, show the **full Postman response panel** including:
+- Request method + URL
+- Status code (e.g. `200 OK`)
+- Response body (JSON)
+- Test results tab (all green)
+
+---
+
+## Run the full collection automatically
+
+In Postman, click the **...** menu on the collection → **Run collection**.
+Screenshot the Collection Runner summary showing all 9 requests passing their
+automated test assertions.
+
+Save as `postman-collection-runner.png`.

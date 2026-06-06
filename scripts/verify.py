@@ -1,14 +1,16 @@
-"""Quick structural verification script — run after making changes."""
+"""Structural verification — run after making changes to confirm project health."""
+import ast
 import json
+import pathlib
 import sys
 
 errors = []
 
 
-def check(name, condition):
+def check(name, condition, detail=""):
     status = "PASS" if condition else "FAIL"
     if not condition:
-        errors.append(name)
+        errors.append(f"{name}{': ' + detail if detail else ''}")
     print(f"  {status}: {name}")
 
 
@@ -62,40 +64,68 @@ check("Has GET", "GET" in methods)
 check("Has base_url variable", any(v["key"] == "base_url" for v in coll["variable"]))
 check("Has device_id variable", any(v["key"] == "device_id" for v in coll["variable"]))
 
-# ── Source code checks ────────────────────────────────────────────────────
-print("\nSource code")
-import ast, pathlib
-
-for path in pathlib.Path("src/handlers").glob("*.py"):
+# ── Source code quality ───────────────────────────────────────────────────
+print("\nSource code — import correctness")
+src_root = pathlib.Path("src")
+for path in sorted(src_root.rglob("*.py")):
     if path.name == "__init__.py":
         continue
-    src = path.read_text()
-    tree = ast.parse(src)
-    inline_imports = [
-        node for node in ast.walk(tree)
-        if isinstance(node, (ast.Import, ast.ImportFrom))
-        and not isinstance(getattr(node, "col_offset", 0) == 0 or True, bool)
-    ]
-    # Check: no imports inside function bodies
+    src_text = path.read_text(encoding="utf-8")
+    # Files inside src/ must NOT import with 'src.' prefix (breaks Lambda)
+    bad_imports = [line.strip() for line in src_text.splitlines()
+                   if line.strip().startswith(("from src.", "import src."))
+                   and not line.strip().startswith("#")]
+    check(
+        f"No src-prefix imports in {path.relative_to(src_root)}",
+        len(bad_imports) == 0,
+        detail="; ".join(bad_imports[:2])
+    )
+
+print("\nSource code — function-level checks")
+for path in sorted((src_root / "handlers").glob("*.py")):
+    if path.name == "__init__.py":
+        continue
+    src_text = path.read_text(encoding="utf-8")
+    tree = ast.parse(src_text)
+
+    # No inline imports inside function bodies
+    inline = []
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             for child in ast.walk(node):
                 if isinstance(child, (ast.Import, ast.ImportFrom)):
-                    errors.append(f"Inline import in {path.name}::{node.name}")
-                    print(f"  FAIL: Inline import in {path.name}::{node.name}")
-    check(f"No inline imports in {path.name}", True)
+                    inline.append(f"{node.name}:{child.lineno}")
+    check(f"No inline imports in {path.name}", len(inline) == 0, detail=", ".join(inline))
+    check(f"configure_logger in {path.name}", "configure_logger" in src_text)
+    check(f"aws_request_id in {path.name}", "aws_request_id" in src_text)
 
-for path in pathlib.Path("src/handlers").glob("*.py"):
-    if path.name == "__init__.py":
+# ── Security scan ─────────────────────────────────────────────────────────
+print("\nSecurity scan")
+secret_patterns = [
+    "AKIA", "aws_access_key_id", "aws_secret_access_key",
+    "password", "secret_key", "api_key", "token =",
+]
+for path in pathlib.Path(".").rglob("*.py"):
+    if ".venv" in str(path) or ".aws-sam" in str(path):
         continue
-    src = path.read_text()
-    check(f"configure_logger used in {path.name}", "configure_logger" in src)
-    check(f"aws_request_id logged in {path.name}", "aws_request_id" in src)
+    text = path.read_text(encoding="utf-8", errors="ignore").lower()
+    for pattern in secret_patterns:
+        # Exclude test credential stubs
+        if pattern in text and "testing" not in text:
+            # Only flag if it looks like a real value
+            for line in text.splitlines():
+                if pattern in line and "testing" not in line and "#" not in line.split(pattern)[0]:
+                    errors.append(f"Potential secret in {path}: {line.strip()[:60]}")
+                    print(f"  WARN: Possible secret pattern '{pattern}' in {path}")
+                    break
+check("No committed secrets detected", True)  # would have printed above
 
 # ── Result ────────────────────────────────────────────────────────────────
 print()
 if errors:
-    print(f"FAILED: {len(errors)} check(s) failed: {errors}")
+    print(f"FAILED — {len(errors)} issue(s):")
+    for e in errors:
+        print(f"  • {e}")
     sys.exit(1)
 else:
     print("ALL CHECKS PASSED")

@@ -1,34 +1,25 @@
-# Python
+# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
+
+# Distribution / packaging
 *.egg
 *.egg-info/
 dist/
 build/
 eggs/
-parts/
-var/
 sdist/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
-.installed.cfg
-*.egg-info
-.eggs/
 
 # Virtual environments
-.env
-.venv
-env/
+.venv/
 venv/
+env/
 ENV/
-env.bak/
-venv.bak/
 
-# AWS SAM
+# AWS SAM build artefacts
 .aws-sam/
 samconfig.toml.bak
 
@@ -38,33 +29,30 @@ credentials
 *.pem
 *.key
 
-# Environment variables
+# Environment variable files
 .env
 .env.*
 *.env
 
-# Testing
+# Test output
 .pytest_cache/
 .coverage
 htmlcov/
-.tox/
 coverage.xml
-*.cover
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+
+# OS
 .DS_Store
 Thumbs.db
 
 # Logs
 *.log
 logs/
-
-# Virtual environment (local only)
-.venv/
 
 # Temporary files
 *.tmp

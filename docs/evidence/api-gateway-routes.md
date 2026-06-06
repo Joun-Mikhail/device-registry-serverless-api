@@ -1,13 +1,22 @@
 # Evidence: API Gateway Routes
 
-## What to capture
+## What to capture here
 
-After a successful `sam deploy`, take a screenshot of the API Gateway console showing:
+After a successful `sam deploy`, replace this file with a screenshot showing the five
+routes registered in API Gateway. Instructions below.
 
-1. The HTTP API name (`device-registry-dev` stage)
-2. The route list — five routes should be present:
+---
+
+## How to capture
+
+1. Open the [AWS Console](https://console.aws.amazon.com/apigateway) and set the region to **eu-central-1**.
+2. Click **APIs** in the left sidebar.
+3. Click **device-registry-dev** (the HTTP API, not a REST API).
+4. In the left sidebar, click **Routes**.
+5. Take a screenshot of the routes panel. It should show:
 
    ```
+   ANY    /$default
    POST   /devices
    GET    /devices
    GET    /devices/{deviceId}
@@ -15,9 +24,16 @@ After a successful `sam deploy`, take a screenshot of the API Gateway console sh
    DELETE /devices/{deviceId}
    ```
 
-3. The Invoke URL (base URL for all requests)
+6. Save the screenshot as **`api-gateway-routes.png`** in this folder.
+7. Update this file to reference it:
 
-## How to retrieve the URL from the CLI
+   ```markdown
+   ![API Gateway Routes](api-gateway-routes.png)
+   ```
+
+---
+
+## Retrieve the base URL from the CLI
 
 ```bash
 aws cloudformation describe-stacks \
@@ -27,8 +43,9 @@ aws cloudformation describe-stacks \
   --output text
 ```
 
-## Placeholder
+Expected output format:
+```
+https://<api-id>.execute-api.eu-central-1.amazonaws.com/dev
+```
 
-Replace this file with a screenshot (`api-gateway-routes.png`) once the stack is deployed.
-The screenshot should show all five routes listed in the AWS Console under
-**API Gateway → APIs → device-registry-dev → Routes**.
+Store this URL — you need it for Postman validation and the integration tests.
