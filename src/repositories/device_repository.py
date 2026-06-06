@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import boto3
-from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from src.models.device import Device
@@ -58,7 +57,8 @@ class DeviceRepository:
             return self.get(device_id)
 
         now = datetime.now(timezone.utc).isoformat()
-        updates["updatedAt"] = now
+        # Build a new dict — never mutate the caller's input.
+        updates = {**updates, "updatedAt": now}
 
         update_expression_parts = []
         expression_attr_names = {}
