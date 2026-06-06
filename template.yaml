@@ -1,0 +1,219 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Serverless Device Registry API — manages IoT devices using Lambda, API Gateway HTTP API,
+  and DynamoDB. Deployed via AWS SAM.
+
+Globals:
+  Function:
+    Runtime: python3.12
+    MemorySize: 256
+    Timeout: 10
+    Environment:
+      Variables:
+        DEVICES_TABLE: !Ref DevicesTable
+        LOG_LEVEL: INFO
+    Layers:
+      - !Ref DependenciesLayer
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev]
+    Description: Deployment environment.
+
+Resources:
+
+  # ── DynamoDB ──────────────────────────────────────────────────────────────
+
+  DevicesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub "device-registry-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: deviceId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: deviceId
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: device-registry
+
+  # ── Lambda Layer ─────────────────────────────────────────────────────────
+
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "device-registry-deps-${Environment}"
+      ContentUri: dependencies/
+      CompatibleRuntimes:
+        - python3.12
+    Metadata:
+      BuildMethod: python3.12
+
+  # ── Lambda Functions ──────────────────────────────────────────────────────
+
+  CreateDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "device-registry-create-${Environment}"
+      CodeUri: src/
+      Handler: handlers.create_device.handler
+      Description: Creates a new device entry in the registry.
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref DevicesTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DeviceRegistryApi
+            Method: POST
+            Path: /devices
+      LoggingConfig:
+        LogGroup: !Ref CreateDeviceLogGroup
+
+  GetDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "device-registry-get-${Environment}"
+      CodeUri: src/
+      Handler: handlers.get_device.handler
+      Description: Retrieves a single device by ID.
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DevicesTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DeviceRegistryApi
+            Method: GET
+            Path: /devices/{deviceId}
+      LoggingConfig:
+        LogGroup: !Ref GetDeviceLogGroup
+
+  ListDevicesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "device-registry-list-${Environment}"
+      CodeUri: src/
+      Handler: handlers.list_devices.handler
+      Description: Returns all registered devices.
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref DevicesTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DeviceRegistryApi
+            Method: GET
+            Path: /devices
+      LoggingConfig:
+        LogGroup: !Ref ListDevicesLogGroup
+
+  UpdateDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "device-registry-update-${Environment}"
+      CodeUri: src/
+      Handler: handlers.update_device.handler
+      Description: Updates one or more fields on an existing device.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DevicesTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DeviceRegistryApi
+            Method: PUT
+            Path: /devices/{deviceId}
+      LoggingConfig:
+        LogGroup: !Ref UpdateDeviceLogGroup
+
+  DeleteDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "device-registry-delete-${Environment}"
+      CodeUri: src/
+      Handler: handlers.delete_device.handler
+      Description: Removes a device from the registry.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DevicesTable
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref DeviceRegistryApi
+            Method: DELETE
+            Path: /devices/{deviceId}
+      LoggingConfig:
+        LogGroup: !Ref DeleteDeviceLogGroup
+
+  # ── API Gateway HTTP API ──────────────────────────────────────────────────
+
+  DeviceRegistryApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      Description: HTTP API for the Device Registry service.
+      Tags:
+        Environment: !Ref Environment
+        Project: device-registry
+
+  # ── CloudWatch Log Groups (7-day retention) ───────────────────────────────
+
+  CreateDeviceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/device-registry-create-${Environment}"
+      RetentionInDays: 7
+
+  GetDeviceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/device-registry-get-${Environment}"
+      RetentionInDays: 7
+
+  ListDevicesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/device-registry-list-${Environment}"
+      RetentionInDays: 7
+
+  UpdateDeviceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/device-registry-update-${Environment}"
+      RetentionInDays: 7
+
+  DeleteDeviceLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/device-registry-delete-${Environment}"
+      RetentionInDays: 7
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL for the Device Registry API.
+    Value: !Sub "https://${DeviceRegistryApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+
+  DevicesTableName:
+    Description: DynamoDB table name.
+    Value: !Ref DevicesTable
+
+  DevicesTableArn:
+    Description: DynamoDB table ARN.
+    Value: !GetAtt DevicesTable.Arn

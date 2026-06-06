@@ -1,0 +1,22 @@
+# SAM CLI configuration for local development and manual deployments.
+# CI/CD deployments are handled by GitHub Actions (see .github/workflows/deploy.yml).
+
+version = 0.1
+
+[default.global.parameters]
+stack_name = "device-registry-dev"
+region = "eu-central-1"
+confirm_changeset = true
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+stack_name        = "device-registry-dev"
+region            = "eu-central-1"
+capabilities      = "CAPABILITY_IAM"
+parameter_overrides = "Environment=dev"
+resolve_s3        = true
+s3_prefix         = "device-registry"
+confirm_changeset = true
