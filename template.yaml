@@ -8,14 +8,12 @@ Description: >
 Globals:
   Function:
     Runtime: python3.12
-    MemorySize: 256
+    MemorySize: 128
     Timeout: 10
     Environment:
       Variables:
         DEVICES_TABLE: !Ref DevicesTable
         LOG_LEVEL: INFO
-    Layers:
-      - !Ref DependenciesLayer
 
 Parameters:
   Environment:
@@ -48,19 +46,9 @@ Resources:
         - Key: Project
           Value: device-registry
 
-  # ── Lambda Layer ─────────────────────────────────────────────────────────
-
-  DependenciesLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: !Sub "device-registry-deps-${Environment}"
-      ContentUri: dependencies/
-      CompatibleRuntimes:
-        - python3.12
-    Metadata:
-      BuildMethod: python3.12
-
   # ── Lambda Functions ──────────────────────────────────────────────────────
+  # Note: boto3 ships pre-installed in the Python Lambda runtime.
+  # A Lambda Layer for dependencies is unnecessary here and was removed.
 
   CreateDeviceFunction:
     Type: AWS::Serverless::Function
@@ -137,7 +125,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref DeviceRegistryApi
-            Method: PUT
+            Method: PATCH
             Path: /devices/{deviceId}
       LoggingConfig:
         LogGroup: !Ref UpdateDeviceLogGroup
