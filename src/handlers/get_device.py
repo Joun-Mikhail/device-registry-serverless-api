@@ -1,10 +1,8 @@
-import logging
-
 from src.repositories.device_repository import DeviceRepository
-from src.utils.response import success, not_found, internal_error
+from src.utils.logging_config import configure_logger
+from src.utils.response import error, success, not_found, internal_error
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
 _repository = None
 
@@ -17,11 +15,11 @@ def _get_repository() -> DeviceRepository:
 
 
 def handler(event: dict, context) -> dict:
+    request_id = getattr(context, "aws_request_id", "local")
     device_id = event.get("pathParameters", {}).get("deviceId")
-    logger.info("GetDevice invoked for deviceId=%s", device_id)
+    logger.info("GetDevice invoked request_id=%s deviceId=%s", request_id, device_id)
 
     if not device_id:
-        from src.utils.response import error
         return error("'deviceId' path parameter is required.")
 
     try:

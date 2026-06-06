@@ -1,12 +1,11 @@
 import json
-import logging
 
 from src.repositories.device_repository import DeviceRepository
+from src.utils.logging_config import configure_logger
+from src.utils.response import error, success, not_found, internal_error
 from src.validation.device_validator import validate_update_payload
-from src.utils.response import success, error, not_found, internal_error
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
 _repository = None
 
@@ -19,8 +18,9 @@ def _get_repository() -> DeviceRepository:
 
 
 def handler(event: dict, context) -> dict:
+    request_id = getattr(context, "aws_request_id", "local")
     device_id = event.get("pathParameters", {}).get("deviceId")
-    logger.info("UpdateDevice invoked for deviceId=%s", device_id)
+    logger.info("UpdateDevice invoked request_id=%s deviceId=%s", request_id, device_id)
 
     if not device_id:
         return error("'deviceId' path parameter is required.")
@@ -34,12 +34,13 @@ def handler(event: dict, context) -> dict:
     if not valid:
         return error(message)
 
-    # Strip whitespace from name if provided
-    if "name" in body and isinstance(body["name"], str):
-        body["name"] = body["name"].strip()
+    # Build an immutable copy so the caller's dict is never mutated.
+    updates = dict(body)
+    if "name" in updates and isinstance(updates["name"], str):
+        updates["name"] = updates["name"].strip()
 
     try:
-        updated = _get_repository().update(device_id, body)
+        updated = _get_repository().update(device_id, updates)
         if updated is None:
             return not_found("Device")
         return success(updated.to_response())

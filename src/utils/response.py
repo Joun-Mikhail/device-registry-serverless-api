@@ -1,17 +1,23 @@
 import json
-import logging
+from src.utils.logging_config import configure_logger
 
-logger = logging.getLogger(__name__)
+logger = configure_logger(__name__)
 
-CORS_HEADERS = {
+# Standard response headers returned on every API call.
+# Access-Control-Allow-Origin is set to * because this is a dev-only endpoint
+# with no authentication layer. Restrict to a specific origin in production.
+RESPONSE_HEADERS = {
     "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
 }
 
 
 def success(body: dict | list, status_code: int = 200) -> dict:
     return {
         "statusCode": status_code,
-        "headers": CORS_HEADERS,
+        "headers": RESPONSE_HEADERS,
         "body": json.dumps(body),
     }
 
@@ -19,7 +25,7 @@ def success(body: dict | list, status_code: int = 200) -> dict:
 def error(message: str, status_code: int = 400) -> dict:
     return {
         "statusCode": status_code,
-        "headers": CORS_HEADERS,
+        "headers": RESPONSE_HEADERS,
         "body": json.dumps({"error": message}),
     }
 

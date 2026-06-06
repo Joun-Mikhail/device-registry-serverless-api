@@ -1,13 +1,12 @@
 import json
-import logging
 
 from src.models.device import Device
 from src.repositories.device_repository import DeviceRepository
-from src.validation.device_validator import validate_create_payload
+from src.utils.logging_config import configure_logger
 from src.utils.response import success, error, internal_error
+from src.validation.device_validator import validate_create_payload
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = configure_logger(__name__)
 
 _repository = None
 
@@ -20,7 +19,8 @@ def _get_repository() -> DeviceRepository:
 
 
 def handler(event: dict, context) -> dict:
-    logger.info("CreateDevice invoked")
+    request_id = getattr(context, "aws_request_id", "local")
+    logger.info("CreateDevice invoked request_id=%s", request_id)
 
     try:
         body = json.loads(event.get("body") or "{}")
