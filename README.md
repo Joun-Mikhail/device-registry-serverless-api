@@ -29,7 +29,7 @@ API Gateway HTTP API
       ├── POST   /devices          → CreateDeviceFunction
       ├── GET    /devices          → ListDevicesFunction
       ├── GET    /devices/{id}     → GetDeviceFunction
-      ├── PUT    /devices/{id}     → UpdateDeviceFunction
+      ├── PATCH  /devices/{id}     → UpdateDeviceFunction
       └── DELETE /devices/{id}    → DeleteDeviceFunction
                                          │
                                          ▼
@@ -39,7 +39,7 @@ API Gateway HTTP API
 All Lambda logs → CloudWatch Log Groups (7-day retention)
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for detailed diagrams of the request lifecycle, CI/CD pipeline, and IAM model.
+See [`docs/architecture.md`](docs/architecture.md) for detailed diagrams of the request lifecycle, CI/CD pipeline, DynamoDB access patterns, and IAM model.
 
 ---
 
@@ -60,6 +60,8 @@ See [`docs/architecture.md`](docs/architecture.md) for detailed diagrams of the 
 ## API Endpoints
 
 All requests and responses use `Content-Type: application/json`.
+
+All responses include CORS headers (`Access-Control-Allow-Origin: *`) to support browser-based clients in this development environment.
 
 ### Create a device
 
@@ -96,6 +98,12 @@ POST /devices
 }
 ```
 
+**Error response — 400 Bad Request:**
+
+```json
+{ "error": "'type' must be one of: ['actuator', 'controller', 'gateway', 'sensor']." }
+```
+
 ---
 
 ### Get a device
@@ -104,7 +112,11 @@ POST /devices
 GET /devices/{deviceId}
 ```
 
-**Response — 200 OK** (same shape as above) or **404 Not Found**.
+**Response — 200 OK** (same shape as above) or **404 Not Found:**
+
+```json
+{ "error": "Device not found." }
+```
 
 ---
 
@@ -123,15 +135,17 @@ GET /devices
 }
 ```
 
+> **Note:** This endpoint uses a DynamoDB Scan operation, which reads every item in the table. It is suitable for development datasets of under ~1,000 devices. See [Architecture — Scan Limitation](docs/architecture.md) for the production-scale solution using GSI + Query.
+
 ---
 
-### Update a device
+### Update a device (partial)
 
 ```
-PUT /devices/{deviceId}
+PATCH /devices/{deviceId}
 ```
 
-All fields are optional. Only the provided fields are updated.
+`PATCH` is used because this endpoint performs a **partial update** — only the fields provided in the request body are changed. Omitted fields retain their current values.
 
 ```json
 {
@@ -140,7 +154,7 @@ All fields are optional. Only the provided fields are updated.
 }
 ```
 
-**Response — 200 OK** (updated device) or **404 Not Found**.
+**Response — 200 OK** (full updated device) or **404 Not Found**.
 
 ---
 
@@ -172,7 +186,7 @@ Or **404 Not Found**.
 | `status` | String | No | `active` (default), `inactive`, `maintenance` |
 | `location` | String | No | Up to 200 characters |
 | `metadata` | Object | No | Free-form JSON object |
-| `createdAt` | ISO 8601 timestamp | Auto-set | Set on creation |
+| `createdAt` | ISO 8601 timestamp | Auto-set | Set on creation, never modified |
 | `updatedAt` | ISO 8601 timestamp | Auto-set | Updated on every write |
 
 ---
@@ -184,30 +198,31 @@ Or **404 Not Found**.
 - `status` — optional, must be one of: `active`, `inactive`, `maintenance`
 - `location` — optional string, max 200 characters
 - `metadata` — optional, must be a JSON object (not an array or scalar)
-- Update requests must include at least one recognised field; unknown fields return `400`
+- PATCH requests must include at least one recognised field; unknown fields return `400`
 
 ---
 
 ## Testing
 
-Tests use `pytest` and `moto` to mock DynamoDB locally — no AWS account needed to run the test suite.
+Tests use `pytest` and `moto` to mock DynamoDB locally — no AWS account needed.
 
 ```
 tests/
-├── conftest.py              # Shared fixtures (mock DynamoDB table)
+├── conftest.py                    # Shared fixtures (mock DynamoDB table)
 ├── unit/
-│   ├── test_device_model.py     # Device dataclass and serialisation
-│   ├── test_device_validator.py # Validation rules (create and update)
-│   └── test_handlers.py         # Handler logic end-to-end (mocked)
+│   ├── test_device_model.py       # Device dataclass and serialisation
+│   ├── test_device_validator.py   # Validation rules (create and update)
+│   ├── test_handlers.py           # Handler logic end-to-end (mocked DB)
+│   └── test_device_repository.py  # Repository operations + mutation regression
 └── integration/
-    └── test_api.py              # Live API tests (requires API_BASE_URL)
+    └── test_api.py                # Live API tests (requires API_BASE_URL)
 ```
 
 **Run unit tests:**
 
 ```bash
 pip install -r requirements-dev.txt
-pytest tests/unit/ -v --cov=src --cov-report=term-missing
+pytest                  # uses pytest.ini defaults (tests/unit/, coverage ≥ 80%)
 ```
 
 **Run integration tests against a deployed stack:**
@@ -217,6 +232,10 @@ export API_BASE_URL=https://<api-id>.execute-api.eu-central-1.amazonaws.com/dev
 pytest tests/integration/ -v
 ```
 
+**Postman collection:** [`docs/postman/device-registry.postman_collection.json`](docs/postman/device-registry.postman_collection.json)
+
+Import into Postman, set the `base_url` collection variable, and run the requests in order. Each request includes automated test scripts that verify status codes and response shape.
+
 ---
 
 ## CI/CD Pipeline
@@ -225,13 +244,13 @@ The pipeline is triggered manually via `workflow_dispatch` in GitHub Actions.
 
 **Stages:**
 
-1. **Unit Tests** — runs `pytest tests/unit/` with coverage enforcement (≥80%)
+1. **Unit Tests** — installs deps (pip cache enabled), runs `pytest tests/unit/` with coverage enforcement (≥80%)
 2. **Deploy** — runs only if tests pass; authenticates to AWS via GitHub OIDC, then:
    - `sam build --parallel --cached`
    - `sam deploy` to stack `device-registry-dev` in `eu-central-1`
    - Prints deployed stack outputs (API URL, table name)
 
-No long-lived AWS credentials are stored in GitHub Secrets. Only `AWS_DEPLOY_ROLE_ARN` is stored (the ARN of the IAM role to assume).
+No long-lived AWS credentials are stored in GitHub Secrets. Only `AWS_DEPLOY_ROLE_ARN` is stored (the ARN of the IAM role to assume via OIDC).
 
 ---
 
@@ -247,7 +266,9 @@ Each Lambda function writes structured logs to a dedicated CloudWatch Log Group:
 | `/aws/lambda/device-registry-update-dev` | 7 days |
 | `/aws/lambda/device-registry-delete-dev` | 7 days |
 
-Handlers log at `INFO` level on entry and `ERROR` level on DynamoDB failures. Unhandled exceptions are logged with a full traceback before returning a generic `500` response (stack traces are never exposed to callers).
+Every log line includes the Lambda `aws_request_id` for correlation across log groups. Log verbosity is controlled by the `LOG_LEVEL` environment variable in the SAM template — set to `DEBUG` for detailed output without a code change.
+
+Unhandled exceptions are logged with a full traceback before returning a generic `500` response — stack traces are never exposed to callers.
 
 ---
 
@@ -261,9 +282,11 @@ Handlers log at `INFO` level on entry and `ERROR` level on DynamoDB failures. Un
 
 **Input validation.** All user-supplied fields are validated for type, length, and allowed values before reaching the repository layer.
 
-**Error isolation.** Internal error messages and stack traces are logged to CloudWatch but never returned to the caller. The API returns a generic `500` message on unexpected failures.
+**Error isolation.** Internal error messages and stack traces are logged to CloudWatch but never returned to the caller.
 
 **CloudWatch retention.** Log groups are set to 7-day retention to limit exposure of any sensitive data that may appear in logs.
+
+**CORS.** Response headers include `Access-Control-Allow-Origin: *`. This is appropriate for a dev-only endpoint with no authentication. Restrict to a specific origin in a production environment with an auth layer.
 
 ---
 
@@ -278,17 +301,15 @@ Handlers log at `INFO` level on entry and `ERROR` level on DynamoDB failures. Un
 ### Manual deployment (first time)
 
 ```bash
-# Build
 sam build --parallel
 
-# Deploy (interactive — will prompt for confirmation)
 sam deploy --guided
-# Stack name:     device-registry-dev
-# Region:         eu-central-1
+# Stack name:          device-registry-dev
+# Region:              eu-central-1
 # Parameter overrides: Environment=dev
 ```
 
-SAM will create an S3 bucket for deployment artefacts automatically.
+SAM creates an S3 bucket for deployment artefacts automatically.
 
 ### Subsequent deployments
 
@@ -303,21 +324,20 @@ Or trigger the GitHub Actions workflow via the **Actions** tab → **Deploy — 
 
 ## Cleanup Instructions
 
-To delete all AWS resources created by this project:
-
 ```bash
 sam delete --stack-name device-registry-dev --region eu-central-1
 ```
 
-> **Note:** The DynamoDB table has `DeletionPolicy: Retain`, so it will not be deleted when the stack is removed. Delete it manually in the AWS console if you no longer need the data.
+> **Note:** The DynamoDB table has `DeletionPolicy: Retain` and will not be deleted with the stack. Delete it manually in the AWS console if you no longer need the data.
 
 ---
 
 ## Future Improvements
 
-- **Pagination** — add `limit` and `nextToken` query parameters to `GET /devices` for large datasets
-- **Filtering** — support filtering by `type` or `status` via query string parameters
-- **GSI** — add a DynamoDB Global Secondary Index on `type` to avoid full-table scans for filtered queries
-- **OpenAPI spec** — attach an OpenAPI definition to API Gateway for automatic documentation and SDK generation
-- **Structured logging** — switch to JSON-formatted logs (e.g. `aws-lambda-powertools`) for easier CloudWatch Insights querying
-- **Dead-letter queues** — add Lambda DLQs for async invocations if the API is extended with event-driven patterns
+The highest-priority improvements in order:
+
+1. **Pagination on `GET /devices`** — expose `limit` and `nextToken` query parameters, backed by DynamoDB's `Limit` + `ExclusiveStartKey` scan pagination. This is the most important gap for production readiness.
+2. **GSI for filtered listing** — add a Global Secondary Index on `type` to support `GET /devices?type=sensor` with a targeted `Query` instead of a full `Scan`.
+3. **OpenAPI spec** — attach an OpenAPI 3.0 definition to API Gateway for auto-generated documentation and client SDK generation.
+4. **Structured logging** — replace `logging` with [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/) for JSON-formatted logs and easier CloudWatch Insights querying.
+5. **Dead-letter queues** — add Lambda DLQs if the API is extended with async/event-driven patterns.

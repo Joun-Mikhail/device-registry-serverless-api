@@ -16,7 +16,7 @@
 │  POST   /devices          →  CreateDeviceFunction           │
 │  GET    /devices          →  ListDevicesFunction            │
 │  GET    /devices/{id}     →  GetDeviceFunction              │
-│  PUT    /devices/{id}     →  UpdateDeviceFunction           │
+│  PATCH  /devices/{id}     →  UpdateDeviceFunction           │
 │  DELETE /devices/{id}     →  DeleteDeviceFunction           │
 └──────────┬──────────────────────────────────────────────────┘
            │ Invoke
@@ -72,23 +72,44 @@ Lambda Handler
   └─ 5. Return structured JSON response
 ```
 
+## DynamoDB Access Patterns
+
+| Operation | Method | DynamoDB Operation | Notes |
+|---|---|---|---|
+| Create | `PutItem` | Conditional — fails if deviceId exists | UUID collision guard |
+| Get by ID | `GetItem` | Single item lookup by partition key | O(1) |
+| List all | `Scan` | Full table read | See limitation below |
+| Update fields | `UpdateItem` | Conditional — fails if deviceId absent | Returns updated item |
+| Delete | `DeleteItem` | Conditional — fails if deviceId absent | Returns boolean |
+
+### Scan Limitation
+
+`GET /devices` currently uses a DynamoDB **Scan**, which reads every item in the
+table and consumes read capacity proportional to the table size. This is acceptable
+for a development dataset of fewer than ~1,000 items.
+
+**Production scale solution:** Add a Global Secondary Index (GSI) on `type` or
+`status` and replace Scan with a targeted Query. For a general "list all" use case
+at scale, consider DynamoDB pagination with `Limit` + `LastEvaluatedKey` and expose
+`limit` and `nextToken` query parameters on the API endpoint.
+
 ## CI/CD Pipeline
 
 ```
 Developer
   │
-  │  git push / manual trigger
+  │  Manual trigger (workflow_dispatch)
   ▼
-GitHub Actions (workflow_dispatch)
+GitHub Actions
   │
   ├─ Job 1: Unit Tests
-  │     pytest tests/unit/
-  │     Coverage ≥ 80%
+  │     pip install (cached) → pytest tests/unit/
+  │     Coverage ≥ 80% enforced
   │
   └─ Job 2: Deploy (depends on Job 1 passing)
         │
         ├─ OIDC → AWS STS AssumeRoleWithWebIdentity
-        │           (no long-lived credentials stored)
+        │           (no long-lived credentials stored in GitHub)
         │
         ├─ sam build --parallel --cached
         │
@@ -99,7 +120,7 @@ GitHub Actions (workflow_dispatch)
 
 ## IAM Permissions (Least Privilege)
 
-Each Lambda function is granted only the DynamoDB actions it needs:
+Each Lambda function is granted only the DynamoDB actions it requires:
 
 | Function       | DynamoDB Policy        | Actions                          |
 |----------------|------------------------|----------------------------------|
@@ -108,3 +129,10 @@ Each Lambda function is granted only the DynamoDB actions it needs:
 | ListDevices    | DynamoDBReadPolicy     | Scan                             |
 | UpdateDevice   | DynamoDBCrudPolicy     | GetItem, PutItem, UpdateItem     |
 | DeleteDevice   | DynamoDBCrudPolicy     | GetItem, DeleteItem              |
+
+## Logging
+
+Each function logs at `INFO` level by default. Set `LOG_LEVEL=DEBUG` in the SAM
+template environment variables to increase verbosity without a code change. Every
+log line includes the Lambda `aws_request_id` for cross-service correlation in
+CloudWatch Logs Insights.

@@ -1,0 +1,255 @@
+{
+  "info": {
+    "name": "Device Registry API",
+    "description": "CRUD operations for the Serverless Device Registry API.\n\nSet the `base_url` collection variable to your deployed API Gateway URL:\nhttps://<api-id>.execute-api.eu-central-1.amazonaws.com/dev",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://REPLACE_ME.execute-api.eu-central-1.amazonaws.com/dev",
+      "type": "string",
+      "description": "Replace with your deployed API Gateway base URL (from sam deploy output or CloudFormation stack outputs)."
+    },
+    {
+      "key": "device_id",
+      "value": "",
+      "type": "string",
+      "description": "Populated automatically by the Create Device request."
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Response has deviceId', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.deviceId).to.be.a('string');",
+              "  pm.collectionVariables.set('device_id', body.deviceId);",
+              "});",
+              "pm.test('Response has createdAt and updatedAt', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.createdAt).to.be.a('string');",
+              "  pm.expect(body.updatedAt).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Temperature Sensor A\",\n  \"type\": \"sensor\",\n  \"status\": \"active\",\n  \"location\": \"Building B / Room 12\",\n  \"metadata\": { \"firmware\": \"v2.1.0\", \"protocol\": \"MQTT\" }\n}"
+        },
+        "url": "{{base_url}}/devices"
+      }
+    },
+    {
+      "name": "List Devices",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response has items array', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.items).to.be.an('array');",
+              "  pm.expect(body.count).to.be.a('number');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/devices"
+      }
+    },
+    {
+      "name": "Get Device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Device ID matches', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.deviceId).to.eql(pm.collectionVariables.get('device_id'));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/devices/{{device_id}}"
+      }
+    },
+    {
+      "name": "Get Device — 404 (random ID)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 404 Not Found', () => pm.response.to.have.status(404));",
+              "pm.test('Response has error field', () => {",
+              "  pm.expect(pm.response.json().error).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/devices/00000000-0000-0000-0000-000000000000"
+      }
+    },
+    {
+      "name": "Update Device (PATCH)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Status field updated', () => {",
+              "  pm.expect(pm.response.json().status).to.eql('maintenance');",
+              "});",
+              "pm.test('Other fields unchanged', () => {",
+              "  pm.expect(pm.response.json().name).to.eql('Temperature Sensor A');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"maintenance\"\n}"
+        },
+        "url": "{{base_url}}/devices/{{device_id}}"
+      }
+    },
+    {
+      "name": "Create Device — 400 missing name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('Error message mentions name', () => {",
+              "  pm.expect(pm.response.json().error).to.include('name');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"sensor\"\n}"
+        },
+        "url": "{{base_url}}/devices"
+      }
+    },
+    {
+      "name": "Create Device — 400 invalid type",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('Error message mentions type', () => {",
+              "  pm.expect(pm.response.json().error).to.include('type');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Bad Device\",\n  \"type\": \"spaceship\"\n}"
+        },
+        "url": "{{base_url}}/devices"
+      }
+    },
+    {
+      "name": "Delete Device",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Response confirms deletion', () => {",
+              "  pm.expect(pm.response.json().message).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/devices/{{device_id}}"
+      }
+    },
+    {
+      "name": "Get Device — 404 after deletion",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 404 — device was deleted', () => pm.response.to.have.status(404));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/devices/{{device_id}}"
+      }
+    }
+  ]
+}

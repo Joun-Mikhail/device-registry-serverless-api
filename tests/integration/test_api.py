@@ -77,7 +77,7 @@ def test_list_devices(created_device):
 def test_update_device(created_device):
     skip_if_no_url()
     device_id = created_device["deviceId"]
-    status, body = _request("PUT", f"/devices/{device_id}", {"status": "maintenance"})
+    status, body = _request("PATCH", f"/devices/{device_id}", {"status": "maintenance"})
     assert status == 200
     assert body["status"] == "maintenance"
 
