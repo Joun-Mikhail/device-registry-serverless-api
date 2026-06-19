@@ -1,6 +1,12 @@
 # Serverless Device Registry API
 
-> A production-pattern REST API for registering and managing IoT devices.
+[![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml)
+[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api)
+[![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+> A REST API for registering and managing IoT devices, built with production-style
+> patterns and deployed as a single `dev` environment.
 > Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB.
 > Deployed via AWS SAM with a GitHub Actions CI/CD pipeline using OIDC authentication.
 
@@ -74,7 +80,7 @@ CI/CD pipeline diagram, DynamoDB access patterns, and IAM model.
 ## Quick Start (local tests — no AWS required)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/device-registry-serverless-api.git
+git clone https://github.com/Joun-Mikhail/device-registry-serverless-api.git
 cd device-registry-serverless-api
 
 python -m venv .venv
@@ -212,7 +218,7 @@ tests/
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
 │   ├── test_device_validator.py     Validation rules — create and update (17 tests)
 │   ├── test_device_repository.py    DynamoDB operations + mutation regression (14 tests)
-│   └── test_handlers.py             End-to-end handler logic, mocked DB (23 tests)
+│   └── test_handlers.py             End-to-end handler logic, mocked DB (22 tests)
 └── integration/
     └── test_api.py                  Live API tests — skip if API_BASE_URL unset
 ```
@@ -286,6 +292,7 @@ environment variable in `template.yaml` — set to `DEBUG` without a code change
 | Secrets in code | None — `DEVICES_TABLE` injected by SAM at deploy time |
 | Log retention | 7-day CloudWatch retention limits data exposure window |
 | CORS | `Access-Control-Allow-Origin: *` — dev-only; restrict in production |
+| **API authentication** | **None yet — the HTTP API is currently open (no authorizer).** Acceptable for a non-public `dev` environment; see Future Improvements item 1 before any public exposure. |
 
 ---
 
@@ -364,11 +371,20 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 
 In priority order:
 
-1. **Pagination on `GET /devices`** — `limit` + `nextToken` query params backed by
-   DynamoDB `Limit` + `ExclusiveStartKey`. Most important gap for production readiness.
-2. **GSI for type/status filtering** — `GET /devices?type=sensor` with a GSI Query
+1. **API authentication** — the HTTP API is currently open. Add an IAM authorizer
+   (`AuthorizationType: AWS_IAM`) for service-to-service callers, or a Lambda authorizer
+   validating an API key / JWT for external clients. Required before any public exposure.
+2. **Pagination on `GET /devices`** — `limit` + `nextToken` query params backed by
+   DynamoDB `Limit` + `ExclusiveStartKey`. Most important functional gap.
+3. **GSI for type/status filtering** — `GET /devices?type=sensor` with a GSI Query
    instead of Scan. Eliminates full-table reads for filtered results.
-3. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
+4. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
    for CloudWatch Logs Insights-compatible output.
-4. **OpenAPI spec** — attach to API Gateway for auto-generated docs and client SDKs.
-5. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+5. **OpenAPI spec** — attach to API Gateway for auto-generated docs and client SDKs.
+6. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
