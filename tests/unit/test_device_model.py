@@ -1,5 +1,5 @@
 import pytest
-from src.models.device import Device, VALID_TYPES, VALID_STATUSES
+from models.device import Device, VALID_TYPES, VALID_STATUSES
 
 
 def test_device_defaults():

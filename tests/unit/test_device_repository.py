@@ -6,8 +6,8 @@ repository.update() must never mutate its caller's input dict.
 """
 import pytest
 from moto import mock_aws
-from src.models.device import Device
-from src.repositories.device_repository import DeviceRepository
+from models.device import Device
+from repositories.device_repository import DeviceRepository
 
 
 @pytest.fixture

@@ -30,32 +30,32 @@ def _reset(module_path: str):
 
 
 def _create(body):
-    _reset("src.handlers.create_device")
-    from src.handlers.create_device import handler
+    _reset("handlers.create_device")
+    from handlers.create_device import handler
     return handler(_event("POST", body), None)
 
 
 def _get(device_id):
-    _reset("src.handlers.get_device")
-    from src.handlers.get_device import handler
+    _reset("handlers.get_device")
+    from handlers.get_device import handler
     return handler(_event("GET", path_params={"deviceId": device_id}), None)
 
 
 def _list():
-    _reset("src.handlers.list_devices")
-    from src.handlers.list_devices import handler
+    _reset("handlers.list_devices")
+    from handlers.list_devices import handler
     return handler(_event("GET"), None)
 
 
 def _patch(device_id, body):
-    _reset("src.handlers.update_device")
-    from src.handlers.update_device import handler
+    _reset("handlers.update_device")
+    from handlers.update_device import handler
     return handler(_event("PATCH", body=body, path_params={"deviceId": device_id}), None)
 
 
 def _delete(device_id):
-    _reset("src.handlers.delete_device")
-    from src.handlers.delete_device import handler
+    _reset("handlers.delete_device")
+    from handlers.delete_device import handler
     return handler(_event("DELETE", path_params={"deviceId": device_id}), None)
 
 
@@ -97,8 +97,8 @@ class TestCreateDevice:
         assert resp["statusCode"] == 400
 
     def test_returns_400_on_bad_json(self):
-        _reset("src.handlers.create_device")
-        from src.handlers.create_device import handler
+        _reset("handlers.create_device")
+        from handlers.create_device import handler
         resp = handler({"body": "not-json", "pathParameters": {}}, None)
         assert resp["statusCode"] == 400
 
@@ -130,8 +130,8 @@ class TestGetDevice:
         assert "error" in json.loads(resp["body"])
 
     def test_returns_400_when_device_id_missing(self):
-        _reset("src.handlers.get_device")
-        from src.handlers.get_device import handler
+        _reset("handlers.get_device")
+        from handlers.get_device import handler
         resp = handler({"pathParameters": {}, "body": None}, None)
         assert resp["statusCode"] == 400
 
@@ -222,7 +222,7 @@ class TestDeleteDevice:
         assert resp["statusCode"] == 404
 
     def test_returns_400_when_device_id_missing(self):
-        _reset("src.handlers.delete_device")
-        from src.handlers.delete_device import handler
+        _reset("handlers.delete_device")
+        from handlers.delete_device import handler
         resp = handler({"pathParameters": {}, "body": None}, None)
         assert resp["statusCode"] == 400
