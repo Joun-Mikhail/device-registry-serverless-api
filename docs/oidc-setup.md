@@ -31,12 +31,13 @@ If it already exists, skip this step.
 
 ## Step 2 — Create the IAM Deploy Role
 
-Replace `YOUR_GITHUB_USERNAME` and `YOUR_REPO_NAME` with your values:
+The `GITHUB_ORG` and `REPO_NAME` below are already set for this repository. If you
+fork it under a different account, change `GITHUB_ORG` to your GitHub username.
 
 ```bash
 # Get your AWS account ID
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-GITHUB_ORG="YOUR_GITHUB_USERNAME"
+GITHUB_ORG="Joun-Mikhail"
 REPO_NAME="device-registry-serverless-api"
 
 # Create the trust policy document
