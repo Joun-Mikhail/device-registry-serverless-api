@@ -67,19 +67,23 @@ check("Has device_id variable", any(v["key"] == "device_id" for v in coll["varia
 # ── Source code quality ───────────────────────────────────────────────────
 print("\nSource code — import correctness")
 src_root = pathlib.Path("src")
-for path in sorted(src_root.rglob("*.py")):
-    if path.name == "__init__.py":
-        continue
-    src_text = path.read_text(encoding="utf-8")
-    # Files inside src/ must NOT import with 'src.' prefix (breaks Lambda)
-    bad_imports = [line.strip() for line in src_text.splitlines()
-                   if line.strip().startswith(("from src.", "import src."))
-                   and not line.strip().startswith("#")]
-    check(
-        f"No src-prefix imports in {path.relative_to(src_root)}",
-        len(bad_imports) == 0,
-        detail="; ".join(bad_imports[:2])
-    )
+# Both src/ and tests/ must use bare imports (matching pythonpath=src and the
+# Lambda runtime). A 'src.' prefix passes on Windows via pytest rootdir insertion
+# but breaks on Linux/Lambda with ModuleNotFoundError: No module named 'src'.
+for scan_root in (src_root, pathlib.Path("tests")):
+    for path in sorted(scan_root.rglob("*.py")):
+        if path.name == "__init__.py":
+            continue
+        src_text = path.read_text(encoding="utf-8")
+        bad_imports = [line.strip() for line in src_text.splitlines()
+                       if ("from src." in line or "import src." in line
+                           or '"src.' in line or "'src." in line)
+                       and not line.strip().startswith("#")]
+        check(
+            f"No src-prefix imports in {path}",
+            len(bad_imports) == 0,
+            detail="; ".join(bad_imports[:2])
+        )
 
 print("\nSource code — function-level checks")
 for path in sorted((src_root / "handlers").glob("*.py")):
