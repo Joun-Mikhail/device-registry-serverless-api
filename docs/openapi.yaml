@@ -1,0 +1,301 @@
+openapi: 3.0.3
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STATUS: SKELETON (Sprint 0). Paths, schemas, and the error model are defined.
+# Sprint 2 finalizes this contract and wires it into CI as a contract test.
+# Pagination fields (limit / nextToken) are added in Sprint 1 alongside the
+# Query/GSI work — see docs/architecture.md "Scan Limitation".
+# ─────────────────────────────────────────────────────────────────────────────
+
+info:
+  title: Device Registry API
+  description: >
+    Serverless REST API for registering and managing IoT devices.
+    Backed by AWS Lambda, API Gateway HTTP API, and DynamoDB.
+  version: 0.1.0
+  license:
+    name: MIT
+    url: https://github.com/Joun-Mikhail/device-registry-serverless-api/blob/main/LICENSE
+
+servers:
+  - url: https://{apiId}.execute-api.eu-central-1.amazonaws.com/dev
+    description: dev environment
+    variables:
+      apiId:
+        default: REPLACE_ME
+        description: The API Gateway HTTP API ID from the deployed stack output.
+
+tags:
+  - name: Devices
+    description: CRUD operations over the device catalogue.
+
+paths:
+  /devices:
+    get:
+      tags: [Devices]
+      summary: List devices
+      operationId: listDevices
+      description: >
+        Returns devices. Sprint 1 adds `limit` and `nextToken` query parameters
+        for pagination and `type` for GSI-backed filtering.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/NextToken'
+        - $ref: '#/components/parameters/TypeFilter'
+      responses:
+        '200':
+          description: A page of devices.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Devices]
+      summary: Create a device
+      operationId: createDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreate'
+      responses:
+        '201':
+          description: Device created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /devices/{deviceId}:
+    parameters:
+      - $ref: '#/components/parameters/DeviceId'
+    get:
+      tags: [Devices]
+      summary: Get a device by ID
+      operationId: getDevice
+      responses:
+        '200':
+          description: The requested device.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Devices]
+      summary: Partially update a device
+      operationId: updateDevice
+      description: Only the fields supplied in the body are updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdate'
+      responses:
+        '200':
+          description: The updated device.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Devices]
+      summary: Delete a device
+      operationId: deleteDevice
+      responses:
+        '200':
+          description: Deletion confirmation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      description: UUID v4 identifier of the device.
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of items to return (Sprint 1).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    NextToken:
+      name: nextToken
+      in: query
+      required: false
+      description: Opaque pagination cursor returned by a previous call (Sprint 1).
+      schema:
+        type: string
+    TypeFilter:
+      name: type
+      in: query
+      required: false
+      description: Filter devices by type via the type-createdAt GSI (Sprint 1).
+      schema:
+        $ref: '#/components/schemas/DeviceType'
+
+  schemas:
+    DeviceType:
+      type: string
+      enum: [sensor, actuator, gateway, controller]
+
+    DeviceStatus:
+      type: string
+      enum: [active, inactive, maintenance]
+      default: active
+
+    DeviceCreate:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          $ref: '#/components/schemas/DeviceType'
+        status:
+          $ref: '#/components/schemas/DeviceStatus'
+        location:
+          type: string
+          maxLength: 200
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+      additionalProperties: false
+
+    DeviceUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          $ref: '#/components/schemas/DeviceType'
+        status:
+          $ref: '#/components/schemas/DeviceStatus'
+        location:
+          type: string
+          maxLength: 200
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+      additionalProperties: false
+
+    Device:
+      type: object
+      required: [deviceId, name, type, status, createdAt, updatedAt]
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          $ref: '#/components/schemas/DeviceType'
+        status:
+          $ref: '#/components/schemas/DeviceStatus'
+        location:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DeviceList:
+      type: object
+      required: [items, count]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+        count:
+          type: integer
+          description: Number of items in this page.
+        nextToken:
+          type: string
+          nullable: true
+          description: Cursor for the next page; absent when there are no more results (Sprint 1).
+
+    DeleteResult:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message. Never contains stack traces.
+
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The requested device does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: An unexpected server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
