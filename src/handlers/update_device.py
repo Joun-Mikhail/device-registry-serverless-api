@@ -1,11 +1,9 @@
 import json
 
 from repositories.device_repository import DeviceRepository
-from utils.logging_config import configure_logger
+from utils.logging import log_invocation
 from utils.response import error, success, not_found, internal_error
 from validation.device_validator import validate_update_payload
-
-logger = configure_logger(__name__)
 
 _repository = None
 
@@ -17,10 +15,9 @@ def _get_repository() -> DeviceRepository:
     return _repository
 
 
+@log_invocation("UpdateDevice")
 def handler(event: dict, context) -> dict:
-    request_id = getattr(context, "aws_request_id", "local")
     device_id = event.get("pathParameters", {}).get("deviceId")
-    logger.info("UpdateDevice invoked request_id=%s deviceId=%s", request_id, device_id)
 
     if not device_id:
         return error("'deviceId' path parameter is required.")

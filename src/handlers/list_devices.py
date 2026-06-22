@@ -1,10 +1,8 @@
 from repositories.device_repository import DeviceRepository
-from utils.logging_config import configure_logger
+from utils.logging import log_invocation
 from utils.pagination import decode_token, encode_token
 from utils.response import error, success, internal_error
 from validation.device_validator import validate_list_params
-
-logger = configure_logger(__name__)
 
 _repository = None
 
@@ -16,10 +14,9 @@ def _get_repository() -> DeviceRepository:
     return _repository
 
 
+@log_invocation("ListDevices")
 def handler(event: dict, context) -> dict:
-    request_id = getattr(context, "aws_request_id", "local")
     query = event.get("queryStringParameters") or {}
-    logger.info("ListDevices invoked request_id=%s query=%s", request_id, query)
 
     valid, message, params = validate_list_params(query)
     if not valid:
@@ -31,6 +28,9 @@ def handler(event: dict, context) -> dict:
         return error(str(exc))
 
     try:
+        # NOTE: Uses DynamoDB Scan when unfiltered — bounded per request by limit.
+        # When type is given, queries the type-createdAt GSI instead. At scale,
+        # replace the unfiltered Scan with a materialised index.
         devices, last_key = _get_repository().list_paginated(
             limit=params["limit"],
             start_key=start_key,

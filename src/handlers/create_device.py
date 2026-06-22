@@ -2,11 +2,9 @@ import json
 
 from models.device import Device
 from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
-from utils.logging_config import configure_logger
+from utils.logging import log_invocation
 from utils.response import success, error, conflict, internal_error
 from validation.device_validator import validate_create_payload
-
-logger = configure_logger(__name__)
 
 _repository = None
 
@@ -18,10 +16,8 @@ def _get_repository() -> DeviceRepository:
     return _repository
 
 
+@log_invocation("CreateDevice")
 def handler(event: dict, context) -> dict:
-    request_id = getattr(context, "aws_request_id", "local")
-    logger.info("CreateDevice invoked request_id=%s", request_id)
-
     try:
         body = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
