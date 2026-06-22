@@ -1,8 +1,5 @@
 import json
 import pytest
-from moto import mock_aws
-import boto3
-import os
 
 
 @pytest.fixture(autouse=True)
@@ -23,7 +20,6 @@ def _event(method="POST", body=None, path_params=None, query=None):
 
 def _reset(module_path: str):
     """Reset the module-level repository singleton so each test gets a fresh client."""
-    import importlib
     import sys
     mod = sys.modules.get(module_path)
     if mod:
@@ -238,10 +234,9 @@ class TestUpdateDevice:
 
     def test_patch_updated_at_changes(self):
         created_body = json.loads(_create({"name": "Dev F", "type": "sensor"})["body"])
-        original_updated_at = created_body["updatedAt"]
         resp = _patch(created_body["deviceId"], {"status": "inactive"})
         assert resp["statusCode"] == 200
-        # updatedAt must be a string and may differ from the original
+        # updatedAt must be present and a non-empty string after the write
         new_updated_at = json.loads(resp["body"])["updatedAt"]
         assert isinstance(new_updated_at, str)
         assert len(new_updated_at) > 0

@@ -1,0 +1,28 @@
+# Pre-commit hooks for local + CI quality gates.
+# Install:  pip install pre-commit && pre-commit install
+# Run all:  pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        # --unsafe: parse YAML without resolving custom tags, so CloudFormation
+        # intrinsics (!Ref, !Sub, !GetAtt) in template.yaml don't break the check.
+        args: [--unsafe]
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff   # lint (config in ruff.toml)
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '(\.venv/.*|\.png$|\.secrets\.baseline)'

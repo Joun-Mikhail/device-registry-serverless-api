@@ -1,4 +1,3 @@
-import pytest
 from models.device import Device, VALID_TYPES, VALID_STATUSES
 
 

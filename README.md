@@ -282,26 +282,61 @@ test assertions (status codes + response shape).
 
 ---
 
+## Code Quality & Pre-commit
+
+Local hooks (lint, whitespace, secret scan) are configured in
+[`.pre-commit-config.yaml`](.pre-commit-config.yaml):
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install          # run hooks automatically on every commit
+pre-commit run --all-files  # or run them on demand
+```
+
+Hooks: `ruff` (lint, config in [`ruff.toml`](ruff.toml)), trailing-whitespace /
+end-of-file fixers, `check-yaml` (`--unsafe`, for CloudFormation tags), and
+[`detect-secrets`](https://github.com/Yelp/detect-secrets) against a committed
+[`.secrets.baseline`](.secrets.baseline).
+
+**Secret scanning:** `detect-secrets` blocks new credentials from being committed.
+The baseline records reviewed, non-secret matches (the `"testing"` AWS stubs in
+test fixtures and the regex patterns in `scripts/verify.py`). To re-audit:
+
+```bash
+detect-secrets scan --baseline .secrets.baseline   # refresh
+detect-secrets audit .secrets.baseline             # review interactively
+```
+
+CI enforces the same `ruff` lint and `detect-secrets` scan on every push and PR
+(the **Lint & Secret Scan** job), run directly so it doesn't depend on each
+developer's pre-commit setup.
+
+---
+
 ## CI/CD Pipeline
 
-Unit and contract tests run **automatically** on every push and pull request.
+Unit tests, contract tests, and lint/secret scanning run **automatically** on
+every push and pull request.
 Deployment is **manual** via **Actions → Deploy — Device Registry API → Run workflow**.
 
 ```
-┌─ Job 1: Unit Tests (push / PR / dispatch) ───────────────────────────┐
-│  pip install (cached) → pytest tests/unit/ → coverage ≥ 80% check   │
-└──────────────────────────────────┬───────────────────────────────────┘
-                                   │ on success
-┌─ Job 2: Contract Tests ───────────▼───────────────────────────────────┐
-│  validate docs/openapi.yaml → assert every response matches the spec │
-└──────────────────────────────────┬───────────────────────────────────┘
-                                   │ on success (workflow_dispatch only)
-┌─ Job 3: Build & Deploy ───────────▼───────────────────────────────────┐
-│  OIDC → AssumeRoleWithWebIdentity (no stored AWS keys)                │
-│  sam build --parallel --cached                                        │
-│  sam deploy → CloudFormation changeset → device-registry-dev          │
-│  Print ApiBaseUrl, DevicesTableName, DevicesTableArn                  │
-└──────────────────────────────────────────────────────────────────────┘
+┌─ Unit Tests ─────────────────────┐   ┌─ Lint & Secret Scan ─────────────┐
+│  pytest tests/unit/              │   │  ruff check . →                  │
+│  coverage ≥ 80% check            │   │  detect-secrets (baselined)      │
+└───────────────┬──────────────────┘   └──────────────┬───────────────────┘
+               │ on success                          │
+┌─ Contract Tests ▼────────────────┐                  │
+│  validate docs/openapi.yaml →    │                  │
+│  responses must match the spec   │                  │
+└───────────────┬──────────────────┘                  │
+               └──────────────┬───────────────────────┘
+                              │ all green (workflow_dispatch only)
+┌─ Build & Deploy ─────────────▼─────────────────────────────────────────┐
+│  OIDC → AssumeRoleWithWebIdentity (no stored AWS keys)                  │
+│  sam build --parallel --cached                                          │
+│  sam deploy → CloudFormation changeset → device-registry-dev            │
+│  Print ApiBaseUrl, DevicesTableName, DevicesTableArn                    │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 **First-time setup:** see [`docs/oidc-setup.md`](docs/oidc-setup.md) for the IAM

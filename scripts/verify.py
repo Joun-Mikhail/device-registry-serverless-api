@@ -2,6 +2,7 @@
 import ast
 import json
 import pathlib
+import re
 import sys
 
 errors = []
@@ -109,14 +110,12 @@ for path in sorted((src_root / "handlers").glob("*.py")):
 # This deliberately ignores variable names that merely contain "token"/"key"
 # (e.g. next_token = encode_token(...)) — those are logic, not secrets.
 print("\nSecurity scan")
-import re as _re
-
-secret_assignment = _re.compile(
+secret_assignment = re.compile(
     r'(aws_secret_access_key|aws_access_key_id|secret_key|api_key|password|passwd|client_secret)'
     r'\s*[:=]\s*["\'][^"\']+["\']',
-    _re.IGNORECASE,
+    re.IGNORECASE,
 )
-akia_literal = _re.compile(r'AKIA[0-9A-Z]{16}')
+akia_literal = re.compile(r'AKIA[0-9A-Z]{16}')
 findings = []
 for path in pathlib.Path(".").rglob("*.py"):
     if ".venv" in str(path) or ".aws-sam" in str(path):

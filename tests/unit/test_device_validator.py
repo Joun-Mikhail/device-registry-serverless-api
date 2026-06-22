@@ -1,4 +1,3 @@
-import pytest
 from validation.device_validator import (
     validate_create_payload,
     validate_update_payload,
