@@ -72,6 +72,8 @@ paths:
                 $ref: '#/components/schemas/Device'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -248,6 +250,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+      example:
+        deviceId: a3f1c2d4-8b5e-4f9a-bc12-d3e4f5a6b7c8
+        name: Temperature Sensor A
+        type: sensor
+        status: active
+        location: Building B / Room 12
+        metadata:
+          firmware: v2.1.0
+        createdAt: "2024-11-01T10:30:00.123456+00:00"
+        updatedAt: "2024-11-01T10:30:00.123456+00:00"
 
     DeviceList:
       type: object
@@ -264,6 +276,16 @@ components:
           type: string
           nullable: true
           description: Cursor for the next page; absent when there are no more results.
+      example:
+        items:
+          - deviceId: a3f1c2d4-8b5e-4f9a-bc12-d3e4f5a6b7c8
+            name: Temperature Sensor A
+            type: sensor
+            status: active
+            createdAt: "2024-11-01T10:30:00.123456+00:00"
+            updatedAt: "2024-11-01T10:30:00.123456+00:00"
+        count: 1
+        nextToken: eyJkZXZpY2VJZCI6ImEzZjFjMmQ0In0=
 
     DeleteResult:
       type: object
@@ -271,14 +293,29 @@ components:
       properties:
         message:
           type: string
+      example:
+        message: "Device 'a3f1c2d4-8b5e-4f9a-bc12-d3e4f5a6b7c8' deleted successfully."
 
     Error:
       type: object
       required: [error]
       properties:
         error:
-          type: string
-          description: Human-readable error message. Never contains stack traces.
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable error code.
+              enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+            message:
+              type: string
+              description: Human-readable message. Never contains stack traces.
+            details:
+              type: object
+              additionalProperties: true
+              nullable: true
+              description: Optional structured context about the error.
 
   responses:
     BadRequest:
@@ -287,15 +324,37 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: "'type' must be one of: ['actuator', 'controller', 'gateway', 'sensor']."
     NotFound:
       description: The requested device does not exist.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Device not found.
+    Conflict:
+      description: A device with the same ID already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: CONFLICT
+              message: A device with this ID already exists.
     InternalError:
       description: An unexpected server error occurred.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: An internal error occurred. Please try again later.
