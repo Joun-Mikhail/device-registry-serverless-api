@@ -104,25 +104,36 @@ for path in sorted((src_root / "handlers").glob("*.py")):
     check(f"aws_request_id in {path.name}", "aws_request_id" in src_text)
 
 # ── Security scan ─────────────────────────────────────────────────────────
+# Flag a secret only when a sensitive key is ASSIGNED A HARDCODED STRING LITERAL,
+# e.g.  password = "hunter2"  or  aws_secret_access_key="AKIA...".
+# This deliberately ignores variable names that merely contain "token"/"key"
+# (e.g. next_token = encode_token(...)) — those are logic, not secrets.
 print("\nSecurity scan")
-secret_patterns = [
-    "AKIA", "aws_access_key_id", "aws_secret_access_key",
-    "password", "secret_key", "api_key", "token =",
-]
+import re as _re
+
+secret_assignment = _re.compile(
+    r'(aws_secret_access_key|aws_access_key_id|secret_key|api_key|password|passwd|client_secret)'
+    r'\s*[:=]\s*["\'][^"\']+["\']',
+    _re.IGNORECASE,
+)
+akia_literal = _re.compile(r'AKIA[0-9A-Z]{16}')
+findings = []
 for path in pathlib.Path(".").rglob("*.py"):
     if ".venv" in str(path) or ".aws-sam" in str(path):
         continue
-    text = path.read_text(encoding="utf-8", errors="ignore").lower()
-    for pattern in secret_patterns:
-        # Exclude test credential stubs
-        if pattern in text and "testing" not in text:
-            # Only flag if it looks like a real value
-            for line in text.splitlines():
-                if pattern in line and "testing" not in line and "#" not in line.split(pattern)[0]:
-                    errors.append(f"Potential secret in {path}: {line.strip()[:60]}")
-                    print(f"  WARN: Possible secret pattern '{pattern}' in {path}")
-                    break
-check("No committed secrets detected", True)  # would have printed above
+    for lineno, line in enumerate(path.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            continue
+        # Ignore obvious test stubs (moto uses the literal "testing")
+        if '"testing"' in line or "'testing'" in line:
+            continue
+        if secret_assignment.search(line) or akia_literal.search(line):
+            findings.append(f"{path}:{lineno}: {stripped[:70]}")
+for f in findings:
+    print(f"  WARN: {f}")
+    errors.append(f"Potential secret: {f}")
+check("No committed secrets detected", len(findings) == 0)
 
 # ── Result ────────────────────────────────────────────────────────────────
 print()

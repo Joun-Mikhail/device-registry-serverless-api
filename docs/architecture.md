@@ -78,20 +78,43 @@ Lambda Handler
 |---|---|---|---|
 | Create | `PutItem` | Conditional — fails if deviceId exists | UUID collision guard |
 | Get by ID | `GetItem` | Single item lookup by partition key | O(1) |
-| List all | `Scan` | Full table read | See limitation below |
+| List by type | `Query` | GSI `type-createdAt-index`, partition = `type` | Efficient, sorted by createdAt, paginated |
+| List all | `Scan` | Full table read, bounded by `limit` per request | Paginated; see note below |
 | Update fields | `UpdateItem` | Conditional — fails if deviceId absent | Returns updated item |
 | Delete | `DeleteItem` | Conditional — fails if deviceId absent | Returns boolean |
 
-### Scan Limitation
+### Global Secondary Index
 
-`GET /devices` currently uses a DynamoDB **Scan**, which reads every item in the
-table and consumes read capacity proportional to the table size. This is acceptable
-for a development dataset of fewer than ~1,000 items.
+```
+Table: device-registry-dev
+  Partition key: deviceId (S)
 
-**Production scale solution:** Add a Global Secondary Index (GSI) on `type` or
-`status` and replace Scan with a targeted Query. For a general "list all" use case
-at scale, consider DynamoDB pagination with `Limit` + `LastEvaluatedKey` and expose
-`limit` and `nextToken` query parameters on the API endpoint.
+GSI: type-createdAt-index
+  Partition key: type (S)
+  Sort key:      createdAt (S)
+  Projection:    ALL
+```
+
+`GET /devices?type=sensor` issues a **Query** against this GSI — it reads only
+items of that type, returns them sorted by `createdAt`, and supports cursor
+pagination. This replaces a full Scan for the common "filter by type" pattern.
+
+### Pagination
+
+All list responses are paginated:
+
+- `limit` (1–100, default 25) caps items per page.
+- The DynamoDB `LastEvaluatedKey` is base64-encoded into an opaque `nextToken`
+  returned in the response; the client passes it back to fetch the next page.
+- `nextToken` is omitted when there are no more results.
+
+### Remaining Scan
+
+The **unfiltered** `GET /devices` (no `type`) still uses a `Scan`, because a
+Query requires a partition key. It is now bounded per request by `limit`, so a
+single call never reads the whole table unpaginated. At larger scale this
+unfiltered list would be served by a materialised index (e.g. a constant-value
+GSI partition keyed on `createdAt`) to eliminate the Scan entirely.
 
 ## CI/CD Pipeline
 
@@ -126,7 +149,7 @@ Each Lambda function is granted only the DynamoDB actions it requires:
 |----------------|------------------------|----------------------------------|
 | CreateDevice   | DynamoDBWritePolicy    | PutItem                          |
 | GetDevice      | DynamoDBReadPolicy     | GetItem                          |
-| ListDevices    | DynamoDBReadPolicy     | Scan                             |
+| ListDevices    | DynamoDBReadPolicy     | Query (GSI), Scan                |
 | UpdateDevice   | DynamoDBCrudPolicy     | GetItem, PutItem, UpdateItem     |
 | DeleteDevice   | DynamoDBCrudPolicy     | GetItem, DeleteItem              |
 

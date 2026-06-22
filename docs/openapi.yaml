@@ -1,10 +1,10 @@
 openapi: 3.0.3
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STATUS: SKELETON (Sprint 0). Paths, schemas, and the error model are defined.
-# Sprint 2 finalizes this contract and wires it into CI as a contract test.
-# Pagination fields (limit / nextToken) are added in Sprint 1 alongside the
-# Query/GSI work — see docs/architecture.md "Scan Limitation".
+# STATUS: Paths, schemas, error model, and pagination/filter params are defined
+# and implemented (Sprint 1). Sprint 2 wires this contract into CI as an
+# automated contract test (the response schemas are validated against live/mock
+# responses). See docs/architecture.md for the DynamoDB access patterns.
 # ─────────────────────────────────────────────────────────────────────────────
 
 info:
@@ -36,8 +36,8 @@ paths:
       summary: List devices
       operationId: listDevices
       description: >
-        Returns devices. Sprint 1 adds `limit` and `nextToken` query parameters
-        for pagination and `type` for GSI-backed filtering.
+        Returns a page of devices. Supports `limit` + `nextToken` cursor
+        pagination and `type` filtering (served by the type-createdAt GSI).
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/NextToken'
@@ -147,7 +147,7 @@ components:
       name: limit
       in: query
       required: false
-      description: Maximum number of items to return (Sprint 1).
+      description: Maximum number of items to return per page.
       schema:
         type: integer
         minimum: 1
@@ -157,14 +157,14 @@ components:
       name: nextToken
       in: query
       required: false
-      description: Opaque pagination cursor returned by a previous call (Sprint 1).
+      description: Opaque pagination cursor returned by a previous call.
       schema:
         type: string
     TypeFilter:
       name: type
       in: query
       required: false
-      description: Filter devices by type via the type-createdAt GSI (Sprint 1).
+      description: Filter devices by type via the type-createdAt GSI.
       schema:
         $ref: '#/components/schemas/DeviceType'
 
@@ -263,7 +263,7 @@ components:
         nextToken:
           type: string
           nullable: true
-          description: Cursor for the next page; absent when there are no more results (Sprint 1).
+          description: Cursor for the next page; absent when there are no more results.
 
     DeleteResult:
       type: object

@@ -22,8 +22,22 @@ def dynamodb_table(aws_credentials):
         client.create_table(
             TableName="device-registry-dev",
             BillingMode="PAY_PER_REQUEST",
-            AttributeDefinitions=[{"AttributeName": "deviceId", "AttributeType": "S"}],
+            AttributeDefinitions=[
+                {"AttributeName": "deviceId", "AttributeType": "S"},
+                {"AttributeName": "type", "AttributeType": "S"},
+                {"AttributeName": "createdAt", "AttributeType": "S"},
+            ],
             KeySchema=[{"AttributeName": "deviceId", "KeyType": "HASH"}],
+            GlobalSecondaryIndexes=[
+                {
+                    "IndexName": "type-createdAt-index",
+                    "KeySchema": [
+                        {"AttributeName": "type", "KeyType": "HASH"},
+                        {"AttributeName": "createdAt", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
         )
         os.environ["DEVICES_TABLE"] = "device-registry-dev"
         yield

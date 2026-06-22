@@ -74,6 +74,26 @@ def test_list_devices(created_device):
     assert body["count"] >= 1
 
 
+def test_list_devices_with_limit(created_device):
+    skip_if_no_url()
+    status, body = _request("GET", "/devices?limit=1")
+    assert status == 200
+    assert body["count"] <= 1
+
+
+def test_list_devices_filter_by_type(created_device):
+    skip_if_no_url()
+    status, body = _request("GET", "/devices?type=sensor")
+    assert status == 200
+    assert all(d["type"] == "sensor" for d in body["items"])
+
+
+def test_list_devices_invalid_limit_returns_400():
+    skip_if_no_url()
+    status, _ = _request("GET", "/devices?limit=0")
+    assert status == 400
+
+
 def test_update_device(created_device):
     skip_if_no_url()
     device_id = created_device["deviceId"]

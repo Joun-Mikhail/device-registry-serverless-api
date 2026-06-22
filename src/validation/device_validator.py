@@ -5,6 +5,43 @@ from models.device import VALID_TYPES, VALID_STATUSES
 MAX_NAME_LENGTH = 100
 MAX_LOCATION_LENGTH = 200
 
+DEFAULT_LIMIT = 25
+MAX_LIMIT = 100
+
+
+def validate_list_params(query: Optional[dict]) -> Tuple[bool, Optional[str], dict]:
+    """Validate query-string parameters for the list endpoint.
+
+    Returns (is_valid, error_message, parsed) where parsed contains the
+    normalised 'limit' (int), 'type' (str or None), and 'next_token' (str or None).
+    """
+    query = query or {}
+    parsed = {"limit": DEFAULT_LIMIT, "type": None, "next_token": None}
+
+    raw_limit = query.get("limit")
+    if raw_limit is not None:
+        try:
+            limit = int(raw_limit)
+        except (TypeError, ValueError):
+            return False, "'limit' must be an integer.", parsed
+        if limit < 1 or limit > MAX_LIMIT:
+            return False, f"'limit' must be between 1 and {MAX_LIMIT}.", parsed
+        parsed["limit"] = limit
+
+    device_type = query.get("type")
+    if device_type is not None:
+        if device_type not in VALID_TYPES:
+            return False, f"'type' must be one of: {sorted(VALID_TYPES)}.", parsed
+        parsed["type"] = device_type
+
+    next_token = query.get("nextToken")
+    if next_token is not None:
+        if not isinstance(next_token, str) or not next_token.strip():
+            return False, "'nextToken' must be a non-empty string.", parsed
+        parsed["next_token"] = next_token
+
+    return True, None, parsed
+
 
 def validate_create_payload(body: dict) -> Tuple[bool, Optional[str]]:
     """Validate request body for device creation."""

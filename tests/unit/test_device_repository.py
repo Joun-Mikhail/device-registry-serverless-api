@@ -54,20 +54,56 @@ class TestGet:
         assert result.name == saved_device.name
 
 
-# ── list_all ──────────────────────────────────────────────────────────────
+# ── list_paginated ──────────────────────────────────────────────────────────
 
 
-class TestListAll:
+class TestListPaginated:
     def test_returns_empty_list_initially(self, repo):
-        assert repo.list_all() == []
+        items, last_key = repo.list_paginated(limit=25)
+        assert items == []
+        assert last_key is None
 
-    def test_returns_all_items(self, repo):
+    def test_returns_all_items_when_under_limit(self, repo):
         repo.create(Device(name="A", type="sensor"))
         repo.create(Device(name="B", type="actuator"))
-        results = repo.list_all()
-        assert len(results) == 2
-        names = {d.name for d in results}
-        assert names == {"A", "B"}
+        items, last_key = repo.list_paginated(limit=25)
+        assert len(items) == 2
+        assert last_key is None
+        assert {d.name for d in items} == {"A", "B"}
+
+    def test_limit_caps_page_and_returns_cursor(self, repo):
+        for i in range(5):
+            repo.create(Device(name=f"D{i}", type="sensor"))
+        items, last_key = repo.list_paginated(limit=2)
+        assert len(items) == 2
+        assert last_key is not None
+
+    def test_cursor_walks_all_pages_without_duplicates(self, repo):
+        for i in range(5):
+            repo.create(Device(name=f"D{i}", type="sensor"))
+        seen = []
+        start_key = None
+        while True:
+            items, start_key = repo.list_paginated(limit=2, start_key=start_key)
+            seen.extend(d.device_id for d in items)
+            if not start_key:
+                break
+        assert len(seen) == 5
+        assert len(set(seen)) == 5  # no duplicates across pages
+
+    def test_query_by_type_filters_via_gsi(self, repo):
+        repo.create(Device(name="S1", type="sensor"))
+        repo.create(Device(name="S2", type="sensor"))
+        repo.create(Device(name="G1", type="gateway"))
+        items, _ = repo.list_paginated(limit=25, device_type="sensor")
+        assert len(items) == 2
+        assert all(d.type == "sensor" for d in items)
+
+    def test_query_by_type_returns_empty_for_no_matches(self, repo):
+        repo.create(Device(name="S1", type="sensor"))
+        items, last_key = repo.list_paginated(limit=25, device_type="controller")
+        assert items == []
+        assert last_key is None
 
 
 # ── update ────────────────────────────────────────────────────────────────

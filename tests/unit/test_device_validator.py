@@ -1,5 +1,11 @@
 import pytest
-from validation.device_validator import validate_create_payload, validate_update_payload
+from validation.device_validator import (
+    validate_create_payload,
+    validate_update_payload,
+    validate_list_params,
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+)
 
 
 # ── Create ────────────────────────────────────────────────────────────────
@@ -94,3 +100,52 @@ class TestValidateUpdate:
     def test_null_metadata_allowed(self):
         valid, msg = validate_update_payload({"metadata": None})
         assert valid is True
+
+
+# ── List params ─────────────────────────────────────────────────────────────
+
+
+class TestValidateListParams:
+    def test_defaults_when_no_query(self):
+        valid, msg, parsed = validate_list_params(None)
+        assert valid is True
+        assert parsed["limit"] == DEFAULT_LIMIT
+        assert parsed["type"] is None
+        assert parsed["next_token"] is None
+
+    def test_valid_limit_parsed_to_int(self):
+        valid, msg, parsed = validate_list_params({"limit": "10"})
+        assert valid is True
+        assert parsed["limit"] == 10
+
+    def test_limit_zero_rejected(self):
+        valid, msg, _ = validate_list_params({"limit": "0"})
+        assert valid is False
+        assert "limit" in msg
+
+    def test_limit_over_max_rejected(self):
+        valid, msg, _ = validate_list_params({"limit": str(MAX_LIMIT + 1)})
+        assert valid is False
+
+    def test_non_numeric_limit_rejected(self):
+        valid, msg, _ = validate_list_params({"limit": "abc"})
+        assert valid is False
+
+    def test_valid_type_accepted(self):
+        valid, msg, parsed = validate_list_params({"type": "sensor"})
+        assert valid is True
+        assert parsed["type"] == "sensor"
+
+    def test_invalid_type_rejected(self):
+        valid, msg, _ = validate_list_params({"type": "spaceship"})
+        assert valid is False
+        assert "type" in msg
+
+    def test_next_token_passed_through(self):
+        valid, msg, parsed = validate_list_params({"nextToken": "abc"})
+        assert valid is True
+        assert parsed["next_token"] == "abc"
+
+    def test_empty_next_token_rejected(self):
+        valid, msg, _ = validate_list_params({"nextToken": "   "})
+        assert valid is False
