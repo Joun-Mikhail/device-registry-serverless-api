@@ -1,0 +1,6 @@
+# Ruff configuration — intentionally minimal so local, pre-commit, and CI agree.
+# Uses Ruff's default rule set (pyflakes `F` + core pycodestyle `E4/E7/E9`):
+# catches real problems (unused imports/vars, undefined names, syntax) without
+# imposing large stylistic rewrites (import re-ordering, type-annotation upgrades).
+target-version = "py312"
+line-length = 100

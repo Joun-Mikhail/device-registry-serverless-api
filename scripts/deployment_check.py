@@ -61,7 +61,7 @@ policy_map = {
 for fn, (policy, ops) in policy_map.items():
     in_tmpl = policy in tmpl
     handler_name = fn[0].lower() + fn[1:]
-    handler_file = pathlib.Path(f"src/repositories/device_repository.py")
+    handler_file = pathlib.Path("src/repositories/device_repository.py")
     repo_src = handler_file.read_text()
     ops_ok = all(op in repo_src for op in ops)
     label = f"{fn}: {policy}"

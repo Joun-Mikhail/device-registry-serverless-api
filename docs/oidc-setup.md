@@ -40,7 +40,10 @@ ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 GITHUB_ORG="Joun-Mikhail"
 REPO_NAME="device-registry-serverless-api"
 
-# Create the trust policy document
+# Create the trust policy document.
+# NOTE the `sub` condition uses StringEquals (not a wildcard): this role can ONLY
+# be assumed by workflows running on the main branch of this exact repo. This is
+# the least-privilege form — prefer it over "repo:owner/repo:*".
 cat > /tmp/trust-policy.json << EOF
 {
   "Version": "2012-10-17",
@@ -53,10 +56,8 @@ cat > /tmp/trust-policy.json << EOF
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:${GITHUB_ORG}/${REPO_NAME}:*"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:${GITHUB_ORG}/${REPO_NAME}:ref:refs/heads/main"
         }
       }
     }
@@ -70,6 +71,24 @@ aws iam create-role \
   --assume-role-policy-document file:///tmp/trust-policy.json \
   --description "Assumed by GitHub Actions to deploy device-registry-serverless-api"
 ```
+
+### Scoping the `sub` claim
+
+The `sub` (subject) claim identifies *which* workflow run is asking to assume the
+role. Always scope it as tightly as your workflow allows:
+
+| Goal | `sub` value | Match |
+|---|---|---|
+| **Main branch only (recommended)** | `repo:OWNER/REPO:ref:refs/heads/main` | `StringEquals` |
+| A specific branch | `repo:OWNER/REPO:ref:refs/heads/release` | `StringEquals` |
+| A GitHub Environment (e.g. `dev`) | `repo:OWNER/REPO:environment:dev` | `StringEquals` |
+| Version tags only | `repo:OWNER/REPO:ref:refs/tags/v*` | `StringLike` |
+| Any ref in the repo (loosest — avoid) | `repo:OWNER/REPO:*` | `StringLike` |
+
+> Use `StringEquals` with an exact `sub` wherever possible. Only switch to
+> `StringLike` (wildcards) when you genuinely need a pattern (e.g. all tags), and
+> never broaden beyond the single repo. This workflow deploys from `main`, so the
+> main-branch `sub` above is the correct least-privilege choice.
 
 ---
 
