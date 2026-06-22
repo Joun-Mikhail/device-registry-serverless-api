@@ -7,7 +7,7 @@ repository.update() must never mutate its caller's input dict.
 import pytest
 from moto import mock_aws
 from models.device import Device
-from repositories.device_repository import DeviceRepository
+from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
 
 
 @pytest.fixture
@@ -37,6 +37,12 @@ class TestCreate:
         fetched = repo.get(device.device_id)
         assert fetched is not None
         assert fetched.name == "Persisted"
+
+    def test_duplicate_device_id_raises(self, repo):
+        device = Device(name="Dup", type="sensor")
+        repo.create(device)
+        with pytest.raises(DeviceAlreadyExistsError):
+            repo.create(device)  # same deviceId — conditional write must reject
 
 
 # ── get ───────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import json
 
 from models.device import Device
-from repositories.device_repository import DeviceRepository
+from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
 from utils.logging_config import configure_logger
-from utils.response import success, error, internal_error
+from utils.response import success, error, conflict, internal_error
 from validation.device_validator import validate_create_payload
 
 logger = configure_logger(__name__)
@@ -42,5 +42,7 @@ def handler(event: dict, context) -> dict:
     try:
         created = _get_repository().create(device)
         return success(created.to_response(), status_code=201)
+    except DeviceAlreadyExistsError:
+        return conflict("A device with this ID already exists.")
     except Exception as exc:
         return internal_error(exc)

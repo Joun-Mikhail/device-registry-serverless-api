@@ -91,11 +91,31 @@ class TestCreateDevice:
     def test_returns_400_missing_name(self):
         resp = _create({"type": "sensor"})
         assert resp["statusCode"] == 400
-        assert "error" in json.loads(resp["body"])
+        body = json.loads(resp["body"])
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+        assert isinstance(body["error"]["message"], str)
 
     def test_returns_400_invalid_type(self):
         resp = _create({"name": "X", "type": "invalid"})
         assert resp["statusCode"] == 400
+
+    def test_duplicate_id_returns_409(self):
+        # Force a conflict by stubbing the repository to raise on create.
+        import handlers.create_device as m
+        from repositories.device_repository import DeviceAlreadyExistsError
+
+        class _ConflictRepo:
+            def create(self, device):
+                raise DeviceAlreadyExistsError(device.device_id)
+
+        m._repository = _ConflictRepo()
+        try:
+            from handlers.create_device import handler
+            resp = handler(_event("POST", {"name": "Dup", "type": "sensor"}), None)
+        finally:
+            m._repository = None
+        assert resp["statusCode"] == 409
+        assert json.loads(resp["body"])["error"]["code"] == "CONFLICT"
 
     def test_returns_400_on_bad_json(self):
         _reset("handlers.create_device")
@@ -128,7 +148,7 @@ class TestGetDevice:
     def test_returns_404_for_missing_device(self):
         resp = _get("nonexistent-id")
         assert resp["statusCode"] == 404
-        assert "error" in json.loads(resp["body"])
+        assert json.loads(resp["body"])["error"]["code"] == "NOT_FOUND"
 
     def test_returns_400_when_device_id_missing(self):
         _reset("handlers.get_device")

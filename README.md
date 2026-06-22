@@ -122,8 +122,10 @@ curl -X POST https://<api-url>/dev/devices \
 
 **400 Bad Request (validation failure):**
 ```json
-{ "error": "'type' must be one of: ['actuator', 'controller', 'gateway', 'sensor']." }
+{ "error": { "code": "VALIDATION_ERROR", "message": "'type' must be one of: ['actuator', 'controller', 'gateway', 'sensor']." } }
 ```
+
+**409 Conflict** is returned if a device with the same ID already exists.
 
 ---
 
@@ -135,7 +137,7 @@ curl https://<api-url>/dev/devices/a3f1c2d4-8b5e-4f9a-bc12-d3e4f5a6b7c8
 
 **200 OK** (device object) or **404 Not Found:**
 ```json
-{ "error": "Device not found." }
+{ "error": { "code": "NOT_FOUND", "message": "Device not found." } }
 ```
 
 ---
@@ -232,22 +234,40 @@ curl -X DELETE https://<api-url>/dev/devices/a3f1c2d4-...
 ```
 tests/
 ├── conftest.py                      Shared fixtures (mock DynamoDB via moto)
-├── unit/
+├── unit/                            87 tests
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
 │   ├── test_device_validator.py     Validation — create, update, list params (26 tests)
-│   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination (18 tests)
-│   ├── test_handlers.py             End-to-end handler logic, mocked DB (29 tests)
+│   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination, conflict (19 tests)
+│   ├── test_handlers.py             End-to-end handler logic, mocked DB (30 tests)
 │   └── test_pagination.py           Opaque cursor encode/decode (6 tests)
+├── contract/                        13 tests
+│   ├── test_openapi_valid.py        OpenAPI 3.0 spec is valid (2 tests)
+│   └── test_contract.py             Every handler response conforms to the spec (11 tests)
 └── integration/
     └── test_api.py                  Live API tests — skip if API_BASE_URL unset
 ```
 
 **Run unit tests:**
 ```bash
-pytest                              # uses pytest.ini defaults
+pytest                              # uses pytest.ini defaults (tests/unit)
 pytest tests/unit/ -v               # verbose
 pytest --cov=src --cov-report=html  # HTML coverage report
 ```
+
+**Running contract tests locally:**
+
+Contract tests validate `docs/openapi.yaml` and assert that every handler response
+conforms to its published response schema. They run against a `moto`-mocked
+DynamoDB (no AWS account, no server needed).
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/contract --no-cov -v
+```
+
+`--no-cov` is used because the contract suite is scoped to schema conformance, not
+line coverage (the unit suite owns the 80% coverage gate). If a response ever drifts
+from the spec, the contract test fails and prints the offending field and payload.
 
 **Run integration tests:**
 ```bash
@@ -264,14 +284,19 @@ test assertions (status codes + response shape).
 
 ## CI/CD Pipeline
 
-Triggered manually via **Actions → Deploy — Device Registry API → Run workflow**.
+Unit and contract tests run **automatically** on every push and pull request.
+Deployment is **manual** via **Actions → Deploy — Device Registry API → Run workflow**.
 
 ```
-┌─ Job 1: Unit Tests ──────────────────────────────────────────────────┐
+┌─ Job 1: Unit Tests (push / PR / dispatch) ───────────────────────────┐
 │  pip install (cached) → pytest tests/unit/ → coverage ≥ 80% check   │
 └──────────────────────────────────┬───────────────────────────────────┘
                                    │ on success
-┌─ Job 2: Build & Deploy ───────────▼───────────────────────────────────┐
+┌─ Job 2: Contract Tests ───────────▼───────────────────────────────────┐
+│  validate docs/openapi.yaml → assert every response matches the spec │
+└──────────────────────────────────┬───────────────────────────────────┘
+                                   │ on success (workflow_dispatch only)
+┌─ Job 3: Build & Deploy ───────────▼───────────────────────────────────┐
 │  OIDC → AssumeRoleWithWebIdentity (no stored AWS keys)                │
 │  sam build --parallel --cached                                        │
 │  sam deploy → CloudFormation changeset → device-registry-dev          │
@@ -377,7 +402,8 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   └── utils/                      Logging config, HTTP responses, pagination cursor
 ├── docs/openapi.yaml               OpenAPI 3.0 contract
 ├── tests/
-│   ├── unit/                       85 tests, moto-mocked DynamoDB
+│   ├── unit/                       87 tests, moto-mocked DynamoDB
+│   ├── contract/                   13 tests, response ↔ OpenAPI conformance
 │   └── integration/                Live API tests (requires deployed stack)
 ├── template.yaml                   AWS SAM infrastructure definition
 ├── samconfig.toml                  SAM CLI defaults (region, stack name)
@@ -390,7 +416,7 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 ## Future Improvements
 
 **Done:** ✅ cursor pagination (`limit` + `nextToken`) · ✅ GSI Query for `?type=`
-filtering · ✅ OpenAPI 3.0 contract (`docs/openapi.yaml`).
+filtering · ✅ OpenAPI 3.0 contract + contract tests in CI · ✅ structured error model.
 
 In priority order:
 
@@ -399,10 +425,8 @@ In priority order:
    validating an API key / JWT for external clients. Required before any public exposure.
 2. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
    for CloudWatch Logs Insights-compatible output.
-3. **Contract tests in CI** — validate live responses against `docs/openapi.yaml`
-   (e.g. Schemathesis) so the contract can't drift from the implementation.
-4. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
-5. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+3. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
+4. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
 
 ---
 

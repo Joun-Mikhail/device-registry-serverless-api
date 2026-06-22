@@ -15,6 +15,10 @@ logger = configure_logger(__name__)
 TYPE_INDEX = "type-createdAt-index"
 
 
+class DeviceAlreadyExistsError(Exception):
+    """Raised when creating a device whose deviceId already exists."""
+
+
 class DeviceRepository:
     def __init__(self):
         self._table_name = os.environ["DEVICES_TABLE"]
@@ -29,6 +33,8 @@ class DeviceRepository:
             )
             return device
         except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                raise DeviceAlreadyExistsError(device.device_id) from exc
             logger.error("DynamoDB put_item failed: %s", exc.response["Error"])
             raise
 
