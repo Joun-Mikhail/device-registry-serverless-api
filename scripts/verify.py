@@ -101,8 +101,8 @@ for path in sorted((src_root / "handlers").glob("*.py")):
                 if isinstance(child, (ast.Import, ast.ImportFrom)):
                     inline.append(f"{node.name}:{child.lineno}")
     check(f"No inline imports in {path.name}", len(inline) == 0, detail=", ".join(inline))
-    check(f"configure_logger in {path.name}", "configure_logger" in src_text)
-    check(f"aws_request_id in {path.name}", "aws_request_id" in src_text)
+    # Each handler emits a structured per-request log via the log_invocation decorator.
+    check(f"log_invocation in {path.name}", "@log_invocation(" in src_text)
 
 # ── Security scan ─────────────────────────────────────────────────────────
 # Flag a secret only when a sensitive key is ASSIGNED A HARDCODED STRING LITERAL,

@@ -1,8 +1,8 @@
 import json
 from typing import Optional
-from utils.logging_config import configure_logger
+from utils.logging import get_logger
 
-logger = configure_logger(__name__)
+logger = get_logger(__name__)
 
 # Standard response headers returned on every API call.
 # Access-Control-Allow-Origin is set to * because this is a dev-only endpoint

@@ -7,9 +7,9 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from models.device import Device
-from utils.logging_config import configure_logger
+from utils.logging import get_logger
 
-logger = configure_logger(__name__)
+logger = get_logger(__name__)
 
 # GSI enabling efficient, sorted, paginated queries by device type.
 TYPE_INDEX = "type-createdAt-index"

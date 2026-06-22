@@ -234,12 +234,13 @@ curl -X DELETE https://<api-url>/dev/devices/a3f1c2d4-...
 ```
 tests/
 ├── conftest.py                      Shared fixtures (mock DynamoDB via moto)
-├── unit/                            87 tests
+├── unit/                            91 tests
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
 │   ├── test_device_validator.py     Validation — create, update, list params (26 tests)
 │   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination, conflict (19 tests)
 │   ├── test_handlers.py             End-to-end handler logic, mocked DB (30 tests)
-│   └── test_pagination.py           Opaque cursor encode/decode (6 tests)
+│   ├── test_pagination.py           Opaque cursor encode/decode (6 tests)
+│   └── test_logging.py              Structured JSON log shape + decorator (4 tests)
 ├── contract/                        13 tests
 │   ├── test_openapi_valid.py        OpenAPI 3.0 spec is valid (2 tests)
 │   └── test_contract.py             Every handler response conforms to the spec (11 tests)
@@ -354,9 +355,30 @@ role and GitHub secret configuration.
 | `/aws/lambda/device-registry-update-dev` | 7 days |
 | `/aws/lambda/device-registry-delete-dev` | 7 days |
 
-Every log line includes the Lambda `aws_request_id`, enabling cross-log correlation
-in CloudWatch Logs Insights. Log verbosity is controlled by the `LOG_LEVEL`
-environment variable in `template.yaml` — set to `DEBUG` without a code change.
+**Structured JSON logs.** Every handler is wrapped by the `log_invocation`
+decorator ([`src/utils/logging.py`](src/utils/logging.py)), which emits one JSON
+line per request so CloudWatch Logs Insights can query by field:
+
+```json
+{
+  "timestamp": "2024-11-01T10:30:00.123456+00:00",
+  "level": "INFO",
+  "logger": "handlers.create_device",
+  "message": "request",
+  "operation": "CreateDevice",
+  "requestId": "8f3a...",
+  "method": "POST",
+  "path": "/devices",
+  "status": 201,
+  "latencyMs": 12.4,
+  "userAgent": "PostmanRuntime/7.x"
+}
+```
+
+`requestId` enables cross-log correlation. Log verbosity is controlled by the
+`LOG_LEVEL` environment variable in `template.yaml` — set to `DEBUG` without a
+code change. Unhandled exceptions are logged at `ERROR` with `status: 500` and a
+serialized traceback (never returned to the caller).
 
 ---
 
@@ -434,10 +456,10 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   ├── models/                     Device dataclass + DynamoDB serialisation
 │   ├── repositories/               DynamoDB operations (create/get/list/update/delete)
 │   ├── validation/                 Input validation (create, update, list params)
-│   └── utils/                      Logging config, HTTP responses, pagination cursor
+│   └── utils/                      JSON logging, HTTP responses, pagination cursor
 ├── docs/openapi.yaml               OpenAPI 3.0 contract
 ├── tests/
-│   ├── unit/                       87 tests, moto-mocked DynamoDB
+│   ├── unit/                       91 tests, moto-mocked DynamoDB
 │   ├── contract/                   13 tests, response ↔ OpenAPI conformance
 │   └── integration/                Live API tests (requires deployed stack)
 ├── template.yaml                   AWS SAM infrastructure definition
@@ -451,17 +473,17 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 ## Future Improvements
 
 **Done:** ✅ cursor pagination (`limit` + `nextToken`) · ✅ GSI Query for `?type=`
-filtering · ✅ OpenAPI 3.0 contract + contract tests in CI · ✅ structured error model.
+filtering · ✅ OpenAPI 3.0 contract + contract tests in CI · ✅ structured error model
+· ✅ structured JSON request logging · ✅ ruff + detect-secrets pre-commit & CI.
 
 In priority order:
 
 1. **API authentication** — the HTTP API is currently open. Add an IAM authorizer
    (`AuthorizationType: AWS_IAM`) for service-to-service callers, or a Lambda authorizer
    validating an API key / JWT for external clients. Required before any public exposure.
-2. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
-   for CloudWatch Logs Insights-compatible output.
-3. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
-4. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+2. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
+3. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+4. **CloudWatch metrics & alarms** — error-rate / p95-latency alarms (needs a live stack).
 
 ---
 
