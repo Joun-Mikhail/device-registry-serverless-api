@@ -1,7 +1,7 @@
 # Serverless Device Registry API
 
 [![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml)
-[![Coverage](https://img.shields.io/badge/coverage-87%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -90,7 +90,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Expected output: `59 passed, coverage 87%`.
+Expected output: `85 passed, coverage 90%`.
 
 ---
 
@@ -140,19 +140,37 @@ curl https://<api-url>/dev/devices/a3f1c2d4-8b5e-4f9a-bc12-d3e4f5a6b7c8
 
 ---
 
-### List all devices — `GET /devices`
+### List devices — `GET /devices`
+
+Supports cursor pagination and filtering by type.
+
+| Query param | Default | Notes |
+|---|---|---|
+| `limit` | 25 | 1–100 items per page |
+| `nextToken` | — | Opaque cursor from a previous response |
+| `type` | — | `sensor` \| `actuator` \| `gateway` \| `controller` — served by the GSI |
 
 ```bash
-curl https://<api-url>/dev/devices
+# First page of 25
+curl "https://<api-url>/dev/devices"
+
+# Page of 10, filtered by type (uses the type-createdAt GSI Query)
+curl "https://<api-url>/dev/devices?type=sensor&limit=10"
+
+# Next page
+curl "https://<api-url>/dev/devices?limit=10&nextToken=<token-from-previous-response>"
 ```
 
 **200 OK:**
 ```json
-{ "items": [ { ... } ], "count": 1 }
+{ "items": [ { ... } ], "count": 10, "nextToken": "eyJkZXZpY2VJZCI6..." }
 ```
 
-> `GET /devices` uses a DynamoDB Scan — suitable for dev datasets under ~1,000 items.
-> See [Architecture — Scan Limitation](docs/architecture.md) for the production solution.
+`nextToken` is present only when more results exist.
+
+> Filtering by `type` runs an efficient GSI **Query**. The unfiltered list is a
+> **paginated Scan** (bounded by `limit` per request) — the one remaining
+> full-table operation, documented in [Architecture](docs/architecture.md).
 
 ---
 
@@ -216,9 +234,10 @@ tests/
 ├── conftest.py                      Shared fixtures (mock DynamoDB via moto)
 ├── unit/
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
-│   ├── test_device_validator.py     Validation rules — create and update (17 tests)
-│   ├── test_device_repository.py    DynamoDB operations + mutation regression (14 tests)
-│   └── test_handlers.py             End-to-end handler logic, mocked DB (22 tests)
+│   ├── test_device_validator.py     Validation — create, update, list params (26 tests)
+│   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination (18 tests)
+│   ├── test_handlers.py             End-to-end handler logic, mocked DB (29 tests)
+│   └── test_pagination.py           Opaque cursor encode/decode (6 tests)
 └── integration/
     └── test_api.py                  Live API tests — skip if API_BASE_URL unset
 ```
@@ -354,10 +373,11 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   ├── handlers/                   One Lambda handler per endpoint
 │   ├── models/                     Device dataclass + DynamoDB serialisation
 │   ├── repositories/               DynamoDB operations (create/get/list/update/delete)
-│   ├── validation/                 Input validation for create and update
-│   └── utils/                      Shared logging config + HTTP response helpers
+│   ├── validation/                 Input validation (create, update, list params)
+│   └── utils/                      Logging config, HTTP responses, pagination cursor
+├── docs/openapi.yaml               OpenAPI 3.0 contract
 ├── tests/
-│   ├── unit/                       59 tests, moto-mocked DynamoDB
+│   ├── unit/                       85 tests, moto-mocked DynamoDB
 │   └── integration/                Live API tests (requires deployed stack)
 ├── template.yaml                   AWS SAM infrastructure definition
 ├── samconfig.toml                  SAM CLI defaults (region, stack name)
@@ -369,19 +389,20 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 
 ## Future Improvements
 
+**Done:** ✅ cursor pagination (`limit` + `nextToken`) · ✅ GSI Query for `?type=`
+filtering · ✅ OpenAPI 3.0 contract (`docs/openapi.yaml`).
+
 In priority order:
 
 1. **API authentication** — the HTTP API is currently open. Add an IAM authorizer
    (`AuthorizationType: AWS_IAM`) for service-to-service callers, or a Lambda authorizer
    validating an API key / JWT for external clients. Required before any public exposure.
-2. **Pagination on `GET /devices`** — `limit` + `nextToken` query params backed by
-   DynamoDB `Limit` + `ExclusiveStartKey`. Most important functional gap.
-3. **GSI for type/status filtering** — `GET /devices?type=sensor` with a GSI Query
-   instead of Scan. Eliminates full-table reads for filtered results.
-4. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
+2. **Structured JSON logging** — [`aws-lambda-powertools`](https://docs.powertools.aws.dev/lambda/python/)
    for CloudWatch Logs Insights-compatible output.
-5. **OpenAPI spec** — attach to API Gateway for auto-generated docs and client SDKs.
-6. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
+3. **Contract tests in CI** — validate live responses against `docs/openapi.yaml`
+   (e.g. Schemathesis) so the contract can't drift from the implementation.
+4. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
+5. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
 
 ---
 

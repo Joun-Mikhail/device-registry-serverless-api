@@ -3,12 +3,16 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from models.device import Device
 from utils.logging_config import configure_logger
 
 logger = configure_logger(__name__)
+
+# GSI enabling efficient, sorted, paginated queries by device type.
+TYPE_INDEX = "type-createdAt-index"
 
 
 class DeviceRepository:
@@ -39,18 +43,35 @@ class DeviceRepository:
             logger.error("DynamoDB get_item failed: %s", exc.response["Error"])
             raise
 
-    def list_all(self) -> list[Device]:
-        # NOTE: Scan reads every item in the table.
-        # Acceptable for dev with < 1,000 items; replace with GSI + Query at scale.
+    def list_paginated(
+        self,
+        limit: int,
+        start_key: Optional[dict] = None,
+        device_type: Optional[str] = None,
+    ) -> tuple[list[Device], Optional[dict]]:
+        """Return one page of devices and the DynamoDB LastEvaluatedKey (or None).
+
+        When `device_type` is given, the GSI is queried — an efficient, sorted
+        (by createdAt) lookup that reads only matching items. When no type is
+        given, a paginated Scan is used; this is the one remaining full-table
+        read, bounded per request by `limit`. At larger scale the unfiltered
+        list would be served by a materialised index instead of a Scan.
+        """
+        kwargs: dict = {"Limit": limit}
+        if start_key:
+            kwargs["ExclusiveStartKey"] = start_key
+
         try:
-            response = self._table.scan()
-            items = response.get("Items", [])
-            while "LastEvaluatedKey" in response:
-                response = self._table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
-                items.extend(response.get("Items", []))
-            return [Device.from_item(item) for item in items]
+            if device_type is not None:
+                kwargs["IndexName"] = TYPE_INDEX
+                kwargs["KeyConditionExpression"] = Key("type").eq(device_type)
+                response = self._table.query(**kwargs)
+            else:
+                response = self._table.scan(**kwargs)
+            items = [Device.from_item(item) for item in response.get("Items", [])]
+            return items, response.get("LastEvaluatedKey")
         except ClientError as exc:
-            logger.error("DynamoDB scan failed: %s", exc.response["Error"])
+            logger.error("DynamoDB list failed: %s", exc.response["Error"])
             raise
 
     def update(self, device_id: str, updates: dict) -> Optional[Device]:

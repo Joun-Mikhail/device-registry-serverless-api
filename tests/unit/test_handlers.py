@@ -11,11 +11,12 @@ def mock_table(dynamodb_table):
     pass
 
 
-def _event(method="POST", body=None, path_params=None):
+def _event(method="POST", body=None, path_params=None, query=None):
     """Build a minimal API Gateway HTTP API proxy event."""
     return {
         "httpMethod": method,
         "pathParameters": path_params or {},
+        "queryStringParameters": query,
         "body": json.dumps(body) if body is not None else None,
     }
 
@@ -41,10 +42,10 @@ def _get(device_id):
     return handler(_event("GET", path_params={"deviceId": device_id}), None)
 
 
-def _list():
+def _list(query=None):
     _reset("handlers.list_devices")
     from handlers.list_devices import handler
-    return handler(_event("GET"), None)
+    return handler(_event("GET", query=query), None)
 
 
 def _patch(device_id, body):
@@ -155,6 +156,46 @@ class TestListDevices:
         assert body["count"] == 2
         names = {d["name"] for d in body["items"]}
         assert names == {"Device 1", "Device 2"}
+
+    def test_limit_returns_next_token(self):
+        for i in range(3):
+            _create({"name": f"D{i}", "type": "sensor"})
+        resp = _list(query={"limit": "2"})
+        body = json.loads(resp["body"])
+        assert body["count"] == 2
+        assert "nextToken" in body
+
+    def test_next_token_returns_remaining_page(self):
+        for i in range(3):
+            _create({"name": f"D{i}", "type": "sensor"})
+        first = json.loads(_list(query={"limit": "2"})["body"])
+        second = json.loads(_list(query={"limit": "2", "nextToken": first["nextToken"]})["body"])
+        assert second["count"] == 1
+        assert "nextToken" not in second  # last page
+
+    def test_filter_by_type(self):
+        _create({"name": "S1", "type": "sensor"})
+        _create({"name": "G1", "type": "gateway"})
+        resp = _list(query={"type": "sensor"})
+        body = json.loads(resp["body"])
+        assert body["count"] == 1
+        assert body["items"][0]["type"] == "sensor"
+
+    def test_invalid_limit_returns_400(self):
+        resp = _list(query={"limit": "0"})
+        assert resp["statusCode"] == 400
+
+    def test_non_numeric_limit_returns_400(self):
+        resp = _list(query={"limit": "abc"})
+        assert resp["statusCode"] == 400
+
+    def test_invalid_type_returns_400(self):
+        resp = _list(query={"type": "spaceship"})
+        assert resp["statusCode"] == 400
+
+    def test_malformed_next_token_returns_400(self):
+        resp = _list(query={"nextToken": "!!!not-base64!!!"})
+        assert resp["statusCode"] == 400
 
 
 # ── UpdateDevice (PATCH) ──────────────────────────────────────────────────
