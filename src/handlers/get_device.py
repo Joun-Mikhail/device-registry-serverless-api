@@ -1,6 +1,6 @@
 from repositories.device_repository import DeviceRepository
 from utils.logging import log_invocation
-from utils.response import error, success, not_found, internal_error
+from utils.response import error, internal_error, not_found, success
 
 _repository = None
 
@@ -24,5 +24,7 @@ def handler(event: dict, context) -> dict:
         if device is None:
             return not_found("Device")
         return success(device.to_response())
-    except Exception as exc:
+    # Boundary handler: converts any unexpected error into a 500 so stack traces
+    # are logged but never reach the caller (README → Security → Error isolation).
+    except Exception as exc:  # noqa: BLE001
         return internal_error(exc)

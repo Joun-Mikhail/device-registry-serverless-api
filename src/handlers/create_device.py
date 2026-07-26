@@ -1,9 +1,9 @@
 import json
 
 from models.device import Device
-from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
+from repositories.device_repository import DeviceAlreadyExistsError, DeviceRepository
 from utils.logging import log_invocation
-from utils.response import success, error, conflict, internal_error
+from utils.response import conflict, error, internal_error, success
 from validation.device_validator import validate_create_payload
 
 _repository = None
@@ -40,5 +40,7 @@ def handler(event: dict, context) -> dict:
         return success(created.to_response(), status_code=201)
     except DeviceAlreadyExistsError:
         return conflict("A device with this ID already exists.")
-    except Exception as exc:
+    # Boundary handler: converts any unexpected error into a 500 so stack traces
+    # are logged but never reach the caller (README → Security → Error isolation).
+    except Exception as exc:  # noqa: BLE001
         return internal_error(exc)

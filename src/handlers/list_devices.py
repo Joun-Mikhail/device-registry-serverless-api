@@ -1,7 +1,7 @@
 from repositories.device_repository import DeviceRepository
 from utils.logging import log_invocation
 from utils.pagination import decode_token, encode_token
-from utils.response import error, success, internal_error
+from utils.response import error, internal_error, success
 from validation.device_validator import validate_list_params
 
 _repository = None
@@ -44,5 +44,7 @@ def handler(event: dict, context) -> dict:
         if next_token:
             body["nextToken"] = next_token
         return success(body)
-    except Exception as exc:
+    # Boundary handler: converts any unexpected error into a 500 so stack traces
+    # are logged but never reach the caller (README → Security → Error isolation).
+    except Exception as exc:  # noqa: BLE001
         return internal_error(exc)

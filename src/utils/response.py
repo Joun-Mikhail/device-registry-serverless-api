@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+
 from utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -33,7 +33,7 @@ def error(
     message: str,
     status_code: int = 400,
     code: str = CODE_VALIDATION,
-    details: Optional[dict] = None,
+    details: dict | None = None,
 ) -> dict:
     """Return a standardized error envelope: {"error": {code, message, details?}}."""
     err: dict = {"code": code, "message": message}

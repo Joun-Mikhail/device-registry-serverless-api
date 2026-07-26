@@ -1,5 +1,6 @@
 """The OpenAPI document itself must be a valid OpenAPI 3.0 spec."""
 import pathlib
+
 import yaml
 from openapi_spec_validator import validate
 

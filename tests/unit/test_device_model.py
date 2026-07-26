@@ -1,4 +1,4 @@
-from models.device import Device, VALID_TYPES, VALID_STATUSES
+from models.device import VALID_STATUSES, VALID_TYPES, Device
 
 
 def test_device_defaults():

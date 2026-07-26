@@ -1,6 +1,5 @@
-from typing import Tuple, Optional
-from models.device import VALID_TYPES, VALID_STATUSES
 
+from models.device import VALID_STATUSES, VALID_TYPES
 
 MAX_NAME_LENGTH = 100
 MAX_LOCATION_LENGTH = 200
@@ -9,7 +8,7 @@ DEFAULT_LIMIT = 25
 MAX_LIMIT = 100
 
 
-def validate_list_params(query: Optional[dict]) -> Tuple[bool, Optional[str], dict]:
+def validate_list_params(query: dict | None) -> tuple[bool, str | None, dict]:
     """Validate query-string parameters for the list endpoint.
 
     Returns (is_valid, error_message, parsed) where parsed contains the
@@ -43,7 +42,7 @@ def validate_list_params(query: Optional[dict]) -> Tuple[bool, Optional[str], di
     return True, None, parsed
 
 
-def validate_create_payload(body: dict) -> Tuple[bool, Optional[str]]:
+def validate_create_payload(body: dict) -> tuple[bool, str | None]:
     """Validate request body for device creation."""
     if not isinstance(body, dict):
         return False, "Request body must be a JSON object."
@@ -78,7 +77,7 @@ def validate_create_payload(body: dict) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-def validate_update_payload(body: dict) -> Tuple[bool, Optional[str]]:
+def validate_update_payload(body: dict) -> tuple[bool, str | None]:
     """Validate request body for device update. All fields are optional."""
     if not isinstance(body, dict):
         return False, "Request body must be a JSON object."
@@ -103,9 +102,8 @@ def validate_update_payload(body: dict) -> Tuple[bool, Optional[str]]:
         if device_type not in VALID_TYPES:
             return False, f"'type' must be one of: {sorted(VALID_TYPES)}."
 
-    if "status" in body:
-        if body["status"] not in VALID_STATUSES:
-            return False, f"'status' must be one of: {sorted(VALID_STATUSES)}."
+    if "status" in body and body["status"] not in VALID_STATUSES:
+        return False, f"'status' must be one of: {sorted(VALID_STATUSES)}."
 
     if "location" in body:
         location = body["location"]
@@ -114,8 +112,7 @@ def validate_update_payload(body: dict) -> Tuple[bool, Optional[str]]:
         if isinstance(location, str) and len(location) > MAX_LOCATION_LENGTH:
             return False, f"'location' must not exceed {MAX_LOCATION_LENGTH} characters."
 
-    if "metadata" in body:
-        if body["metadata"] is not None and not isinstance(body["metadata"], dict):
-            return False, "'metadata' must be a JSON object or null."
+    if "metadata" in body and body["metadata"] is not None and not isinstance(body["metadata"], dict):
+        return False, "'metadata' must be a JSON object or null."
 
     return True, None

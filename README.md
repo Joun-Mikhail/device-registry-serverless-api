@@ -1,14 +1,27 @@
 # Serverless Device Registry API
 
-[![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api)
+[![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> A REST API for registering and managing IoT devices, built with production-style
-> patterns and deployed as a single `dev` environment.
-> Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB.
-> Deployed via AWS SAM with a GitHub Actions CI/CD pipeline using OIDC authentication.
+> A REST API for registering and managing IoT devices, built as a portfolio project
+> to practise serverless patterns end to end.
+> Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB,
+> packaged with AWS SAM and exercised by a GitHub Actions pipeline.
+
+**Status —** Portfolio project, actively maintained as a learning exercise.
+
+- **Runs on every push:** unit tests, contract tests, `ruff` lint, and secret
+  scanning via GitHub Actions. These are the checks the badges above reflect.
+- **Deployment:** the SAM stack (`template.yaml`) targets a single `dev`
+  environment in `eu-central-1` and is deployed **manually** via
+  *Actions → Deploy → Run workflow* using GitHub OIDC. **No public endpoint is
+  published in this repository**, so there is no live URL to try.
+- **Out of scope:** API authentication (the HTTP API has no authorizer), a
+  multi-environment promotion pipeline, custom domains, autoscaling and cost
+  tuning, and production-grade alerting. See
+  [Future Improvements](#future-improvements) for the intended order of work.
 
 ---
 
@@ -28,7 +41,7 @@ is fully stateless — all state lives in DynamoDB, all compute in Lambda.
 | Least-privilege IAM | Per-function DynamoDB policies (Read / Write / Crud) |
 | Testability | `moto`-backed unit tests, zero AWS account required |
 | Code quality | Layered architecture: handlers → validation → repository → model |
-| Observability | CloudWatch log groups with 7-day retention, request ID correlation |
+| Observability | Structured JSON logging with request ID correlation; log groups declared with 7-day retention |
 
 ---
 
@@ -90,7 +103,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Expected output: `85 passed, coverage 90%`.
+Expected output: `91 passed, coverage 91%`.
 
 ---
 
@@ -347,7 +360,10 @@ role and GitHub secret configuration.
 
 ## Monitoring & Logging
 
-| CloudWatch Log Group | Retention |
+`template.yaml` provisions one log group per function, each with 7-day
+retention. They are created when the stack is deployed:
+
+| CloudWatch Log Group (defined in `template.yaml`) | Retention |
 |---|---|
 | `/aws/lambda/device-registry-create-dev` | 7 days |
 | `/aws/lambda/device-registry-get-dev` | 7 days |
@@ -357,7 +373,9 @@ role and GitHub secret configuration.
 
 **Structured JSON logs.** Every handler is wrapped by the `log_invocation`
 decorator ([`src/utils/logging.py`](src/utils/logging.py)), which emits one JSON
-line per request so CloudWatch Logs Insights can query by field:
+line per request so that, once deployed, CloudWatch Logs Insights can query by
+field. Illustrative example of the shape the decorator produces (not a capture
+from a deployed environment):
 
 ```json
 {
@@ -375,7 +393,7 @@ line per request so CloudWatch Logs Insights can query by field:
 }
 ```
 
-`requestId` enables cross-log correlation. Log verbosity is controlled by the
+`requestId` is emitted to support cross-log correlation. Log verbosity is controlled by the
 `LOG_LEVEL` environment variable in `template.yaml` — set to `DEBUG` without a
 code change. Unhandled exceptions are logged at `ERROR` with `status: 500` and a
 serialized traceback (never returned to the caller).
@@ -389,11 +407,11 @@ serialized traceback (never returned to the caller).
 | No stored AWS keys | GitHub OIDC federation (`AssumeRoleWithWebIdentity`) |
 | Least-privilege IAM | Per-function DynamoDB policy (Write / Read / Crud only) |
 | Input validation | Type, length, and enum checks before any DB operation |
-| Error isolation | Stack traces logged to CloudWatch, never returned to callers |
+| Error isolation | Stack traces sent to the logger, never returned to callers |
 | Secrets in code | None — `DEVICES_TABLE` injected by SAM at deploy time |
-| Log retention | 7-day CloudWatch retention limits data exposure window |
-| CORS | `Access-Control-Allow-Origin: *` — dev-only; restrict in production |
-| **API authentication** | **None yet — the HTTP API is currently open (no authorizer).** Acceptable for a non-public `dev` environment; see Future Improvements item 1 before any public exposure. |
+| Log retention | Log groups declared with 7-day retention to bound the data exposure window |
+| CORS | `Access-Control-Allow-Origin: *` — permissive by design for `dev`; restrict before any public exposure |
+| **API authentication** | **None — `template.yaml` declares no authorizer, so a deployed stack would expose an open HTTP API.** See Future Improvements item 1 before deploying anywhere public. |
 
 ---
 
@@ -403,7 +421,9 @@ serialized traceback (never returned to the caller).
 
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) ≥ 1.100
 - Python 3.12
-- AWS credentials (for manual deploy) or OIDC role configured (for CI)
+- AWS credentials (for manual deploy), or an OIDC role set up per
+  [`docs/oidc-setup.md`](docs/oidc-setup.md) and its ARN stored as the
+  `AWS_DEPLOY_ROLE_ARN` secret (for CI)
 
 ### First deployment
 
@@ -442,11 +462,13 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 
 ```
 .
-├── .github/workflows/deploy.yml    CI/CD pipeline
+├── .github/dependabot.yml          Weekly pip dependency updates
+├── .github/workflows/ci.yml       CI pipeline (test + lint)
+├── .github/workflows/deploy.yml   CD pipeline (SAM deploy)
 ├── docs/
 │   ├── architecture.md             Detailed diagrams and design decisions
 │   ├── oidc-setup.md               One-time AWS IAM + OIDC configuration
-│   ├── evidence/                   Deployment screenshots (post-deploy)
+│   ├── evidence/                   Capture instructions for deploy screenshots
 │   └── postman/                    Importable Postman collection
 ├── scripts/
 │   ├── verify.py                   Structural health checks (51 assertions)
@@ -478,7 +500,7 @@ filtering · ✅ OpenAPI 3.0 contract + contract tests in CI · ✅ structured e
 
 In priority order:
 
-1. **API authentication** — the HTTP API is currently open. Add an IAM authorizer
+1. **API authentication** — the template declares no authorizer. Add an IAM authorizer
    (`AuthorizationType: AWS_IAM`) for service-to-service callers, or a Lambda authorizer
    validating an API key / JWT for external clients. Required before any public exposure.
 2. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.

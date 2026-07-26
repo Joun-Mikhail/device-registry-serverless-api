@@ -1,5 +1,6 @@
 import pytest
-from utils.pagination import encode_token, decode_token
+
+from utils.pagination import decode_token, encode_token
 
 
 class TestEncodeToken:

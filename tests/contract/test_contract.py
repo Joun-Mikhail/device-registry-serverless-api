@@ -26,7 +26,6 @@ def spec():
 @pytest.fixture(autouse=True)
 def _table(dynamodb_table):
     """Provide the moto-mocked table to every contract test (from tests/conftest.py)."""
-    pass
 
 
 def _assert_conforms(spec, component, instance):
