@@ -1,14 +1,27 @@
 # Serverless Device Registry API
 
-[![CI](https://github.com/joun-mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg)](https://github.com/joun-mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/joun-mikhail/device-registry-serverless-api)
+[![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> A REST API for registering and managing IoT devices, built as a learning project
-> applying serverless patterns and deployed as a single `dev` environment.
-> Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB.
-> Deployed via AWS SAM with a GitHub Actions CI/CD pipeline using OIDC authentication.
+> A REST API for registering and managing IoT devices, built as a portfolio project
+> to practise serverless patterns end to end.
+> Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB,
+> packaged with AWS SAM and exercised by a GitHub Actions pipeline.
+
+**Status —** Portfolio project, actively maintained as a learning exercise.
+
+- **Runs on every push:** unit tests, contract tests, `ruff` lint, and secret
+  scanning via GitHub Actions. These are the checks the badges above reflect.
+- **Deployment:** the SAM stack (`template.yaml`) targets a single `dev`
+  environment in `eu-central-1` and is deployed **manually** via
+  *Actions → Deploy → Run workflow* using GitHub OIDC. **No public endpoint is
+  published in this repository**, so there is no live URL to try.
+- **Out of scope:** API authentication (the HTTP API has no authorizer), a
+  multi-environment promotion pipeline, custom domains, autoscaling and cost
+  tuning, and production-grade alerting. See
+  [Future Improvements](#future-improvements) for the intended order of work.
 
 ---
 
@@ -80,7 +93,7 @@ CI/CD pipeline diagram, DynamoDB access patterns, and IAM model.
 ## Quick Start (local tests — no AWS required)
 
 ```bash
-git clone https://github.com/joun-mikhail/device-registry-serverless-api.git
+git clone https://github.com/Joun-Mikhail/device-registry-serverless-api.git
 cd device-registry-serverless-api
 
 python -m venv .venv
@@ -448,7 +461,7 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 ├── docs/
 │   ├── architecture.md             Detailed diagrams and design decisions
 │   ├── oidc-setup.md               One-time AWS IAM + OIDC configuration
-│   ├── evidence/                   Deployment screenshots (post-deploy)
+│   ├── evidence/                   Capture instructions for deploy screenshots
 │   └── postman/                    Importable Postman collection
 ├── scripts/
 │   ├── verify.py                   Structural health checks (51 assertions)
