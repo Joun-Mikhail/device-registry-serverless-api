@@ -9,6 +9,6 @@ jsonschema>=4.20.0
 PyYAML>=6.0
 
 # Lint + secret scanning (Sprint 3)
-ruff>=0.8.0
+ruff>=0.16.0
 detect-secrets>=1.5.0
 pre-commit>=3.5.0
