@@ -1,12 +1,12 @@
 # Serverless Device Registry API
 
-[![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/deploy.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api)
+[![CI](https://github.com/joun-mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg)](https://github.com/joun-mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/joun-mikhail/device-registry-serverless-api)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-> A REST API for registering and managing IoT devices, built with production-style
-> patterns and deployed as a single `dev` environment.
+> A REST API for registering and managing IoT devices, built as a learning project
+> applying serverless patterns and deployed as a single `dev` environment.
 > Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB.
 > Deployed via AWS SAM with a GitHub Actions CI/CD pipeline using OIDC authentication.
 
@@ -80,7 +80,7 @@ CI/CD pipeline diagram, DynamoDB access patterns, and IAM model.
 ## Quick Start (local tests — no AWS required)
 
 ```bash
-git clone https://github.com/Joun-Mikhail/device-registry-serverless-api.git
+git clone https://github.com/joun-mikhail/device-registry-serverless-api.git
 cd device-registry-serverless-api
 
 python -m venv .venv
@@ -90,7 +90,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Expected output: `85 passed, coverage 90%`.
+Expected output: `91 passed, coverage 91%`.
 
 ---
 
@@ -442,7 +442,9 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 
 ```
 .
-├── .github/workflows/deploy.yml    CI/CD pipeline
+├── .github/dependabot.yml          Weekly pip dependency updates
+├── .github/workflows/ci.yml       CI pipeline (test + lint)
+├── .github/workflows/deploy.yml   CD pipeline (SAM deploy)
 ├── docs/
 │   ├── architecture.md             Detailed diagrams and design decisions
 │   ├── oidc-setup.md               One-time AWS IAM + OIDC configuration
