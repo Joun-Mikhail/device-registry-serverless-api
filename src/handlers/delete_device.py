@@ -24,5 +24,7 @@ def handler(event: dict, context) -> dict:
         if not deleted:
             return not_found("Device")
         return success({"message": f"Device '{device_id}' deleted successfully."})
-    except Exception as exc:
+    # Boundary handler: converts any unexpected error into a 500 so stack traces
+    # are logged but never reach the caller (README → Security → Error isolation).
+    except Exception as exc:  # noqa: BLE001
         return internal_error(exc)

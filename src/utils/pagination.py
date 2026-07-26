@@ -26,5 +26,7 @@ def decode_token(token: str | None) -> dict | None:
     except (ValueError, json.JSONDecodeError) as exc:
         raise ValueError("Invalid nextToken.") from exc
     if not isinstance(key, dict):
-        raise ValueError("Invalid nextToken.")
+        # Validation layer: a malformed cursor is a domain error the handlers map
+        # to a 400, not a TypeError signalling programmer misuse.
+        raise ValueError("Invalid nextToken.")  # noqa: TRY004
     return key

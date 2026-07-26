@@ -1,8 +1,2 @@
 target-version = "py312"
 line-length = 100
-
-[lint]
-ignore = [
-    "BLE001",  # broad except Exception — intentional in Lambda handlers for 500 responses
-    "TRY004",  # ValueError vs TypeError — project convention for invalid pagination tokens
-]
