@@ -36,6 +36,7 @@ credentials
 
 # Test output
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 coverage.xml

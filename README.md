@@ -462,16 +462,19 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 
 ```
 .
-├── .github/dependabot.yml          Weekly pip dependency updates
-├── .github/workflows/ci.yml       CI pipeline (test + lint)
-├── .github/workflows/deploy.yml   CD pipeline (SAM deploy)
+├── .github/
+│   ├── dependabot.yml              Weekly pip dependency updates
+│   └── workflows/
+│       ├── ci.yml                  CI pipeline (unit tests + coverage gate + lint)
+│       └── deploy.yml              CD pipeline (contract tests + manual SAM deploy)
 ├── docs/
 │   ├── architecture.md             Detailed diagrams and design decisions
 │   ├── oidc-setup.md               One-time AWS IAM + OIDC configuration
+│   ├── openapi.yaml                OpenAPI 3.0 contract
 │   ├── evidence/                   Capture instructions for deploy screenshots
 │   └── postman/                    Importable Postman collection
 ├── scripts/
-│   ├── verify.py                   Structural health checks (51 assertions)
+│   ├── verify.py                   Structural health checks (template, workflow, imports)
 │   └── deployment_check.py         Pre-deploy readiness verification
 ├── src/
 │   ├── handlers/                   One Lambda handler per endpoint
@@ -479,14 +482,19 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   ├── repositories/               DynamoDB operations (create/get/list/update/delete)
 │   ├── validation/                 Input validation (create, update, list params)
 │   └── utils/                      JSON logging, HTTP responses, pagination cursor
-├── docs/openapi.yaml               OpenAPI 3.0 contract
 ├── tests/
 │   ├── unit/                       91 tests, moto-mocked DynamoDB
 │   ├── contract/                   13 tests, response ↔ OpenAPI conformance
-│   └── integration/                Live API tests (requires deployed stack)
+│   └── integration/                10 tests, skipped unless API_BASE_URL is set
 ├── template.yaml                   AWS SAM infrastructure definition
 ├── samconfig.toml                  SAM CLI defaults (region, stack name)
 ├── pytest.ini                      Test runner configuration
+├── ruff.toml                       Lint configuration
+├── vercel.json                     Disables Vercel git deployments (not a Vercel app)
+├── .pre-commit-config.yaml         Local lint / whitespace / secret-scan hooks
+├── .secrets.baseline               Reviewed detect-secrets baseline
+├── .gitignore                      Build, cache, venv, and credential exclusions
+├── LICENSE                         MIT
 └── requirements*.txt               Runtime and dev dependencies
 ```
 
