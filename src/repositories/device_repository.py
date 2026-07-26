@@ -1,6 +1,5 @@
 import os
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -38,7 +37,7 @@ class DeviceRepository:
             logger.error("DynamoDB put_item failed: %s", exc.response["Error"])
             raise
 
-    def get(self, device_id: str) -> Optional[Device]:
+    def get(self, device_id: str) -> Device | None:
         try:
             response = self._table.get_item(Key={"deviceId": device_id})
             item = response.get("Item")
@@ -52,9 +51,9 @@ class DeviceRepository:
     def list_paginated(
         self,
         limit: int,
-        start_key: Optional[dict] = None,
-        device_type: Optional[str] = None,
-    ) -> tuple[list[Device], Optional[dict]]:
+        start_key: dict | None = None,
+        device_type: str | None = None,
+    ) -> tuple[list[Device], dict | None]:
         """Return one page of devices and the DynamoDB LastEvaluatedKey (or None).
 
         When `device_type` is given, the GSI is queried — an efficient, sorted
@@ -80,11 +79,11 @@ class DeviceRepository:
             logger.error("DynamoDB list failed: %s", exc.response["Error"])
             raise
 
-    def update(self, device_id: str, updates: dict) -> Optional[Device]:
+    def update(self, device_id: str, updates: dict) -> Device | None:
         if not updates:
             return self.get(device_id)
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         # Build a new dict — never mutate the caller's input.
         updates = {**updates, "updatedAt": now}
 

@@ -1,11 +1,11 @@
 import json
+
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def mock_table(dynamodb_table):
     """Each handler test gets a fresh isolated mock DynamoDB table."""
-    pass
 
 
 def _event(method="POST", body=None, path_params=None, query=None):

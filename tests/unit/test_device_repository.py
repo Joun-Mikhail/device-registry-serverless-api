@@ -5,8 +5,9 @@ Covers correctness of DynamoDB operations and the immutability contract:
 repository.update() must never mutate its caller's input dict.
 """
 import pytest
+
 from models.device import Device
-from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
+from repositories.device_repository import DeviceAlreadyExistsError, DeviceRepository
 
 
 @pytest.fixture

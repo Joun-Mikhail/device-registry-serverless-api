@@ -1,9 +1,9 @@
 import json
 
 from models.device import Device
-from repositories.device_repository import DeviceRepository, DeviceAlreadyExistsError
+from repositories.device_repository import DeviceAlreadyExistsError, DeviceRepository
 from utils.logging import log_invocation
-from utils.response import success, error, conflict, internal_error
+from utils.response import conflict, error, internal_error, success
 from validation.device_validator import validate_create_payload
 
 _repository = None

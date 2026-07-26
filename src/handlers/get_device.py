@@ -1,6 +1,6 @@
 from repositories.device_repository import DeviceRepository
 from utils.logging import log_invocation
-from utils.response import error, success, not_found, internal_error
+from utils.response import error, internal_error, not_found, success
 
 _repository = None
 

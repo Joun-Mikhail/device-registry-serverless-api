@@ -1,8 +1,6 @@
 import uuid
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
-from typing import Optional
-
+from datetime import UTC, datetime
 
 VALID_TYPES = {"sensor", "actuator", "gateway", "controller"}
 VALID_STATUSES = {"active", "inactive", "maintenance"}
@@ -14,10 +12,10 @@ class Device:
     type: str
     device_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     status: str = "active"
-    location: Optional[str] = None
-    metadata: Optional[dict] = None
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    location: str | None = None
+    metadata: dict | None = None
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_item(self) -> dict:
         """Serialize to DynamoDB item format."""

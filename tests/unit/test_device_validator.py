@@ -1,11 +1,10 @@
 from validation.device_validator import (
-    validate_create_payload,
-    validate_update_payload,
-    validate_list_params,
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    validate_create_payload,
+    validate_list_params,
+    validate_update_payload,
 )
-
 
 # ── Create ────────────────────────────────────────────────────────────────
 
@@ -17,7 +16,7 @@ class TestValidateCreate:
         assert msg is None
 
     def test_valid_full(self):
-        valid, msg = validate_create_payload({
+        valid, _msg = validate_create_payload({
             "name": "Gateway 01",
             "type": "gateway",
             "status": "inactive",
@@ -62,7 +61,7 @@ class TestValidateCreate:
         assert "metadata" in msg
 
     def test_not_a_dict(self):
-        valid, msg = validate_create_payload("string")
+        valid, _msg = validate_create_payload("string")
         assert valid is False
 
     def test_location_too_long(self):
@@ -76,11 +75,11 @@ class TestValidateCreate:
 
 class TestValidateUpdate:
     def test_valid_partial(self):
-        valid, msg = validate_update_payload({"status": "inactive"})
+        valid, _msg = validate_update_payload({"status": "inactive"})
         assert valid is True
 
     def test_empty_body(self):
-        valid, msg = validate_update_payload({})
+        valid, _msg = validate_update_payload({})
         assert valid is False
 
     def test_unknown_field(self):
@@ -89,15 +88,15 @@ class TestValidateUpdate:
         assert "Unknown" in msg
 
     def test_invalid_type_in_update(self):
-        valid, msg = validate_update_payload({"type": "spaceship"})
+        valid, _msg = validate_update_payload({"type": "spaceship"})
         assert valid is False
 
     def test_null_location_allowed(self):
-        valid, msg = validate_update_payload({"location": None})
+        valid, _msg = validate_update_payload({"location": None})
         assert valid is True
 
     def test_null_metadata_allowed(self):
-        valid, msg = validate_update_payload({"metadata": None})
+        valid, _msg = validate_update_payload({"metadata": None})
         assert valid is True
 
 
@@ -106,14 +105,14 @@ class TestValidateUpdate:
 
 class TestValidateListParams:
     def test_defaults_when_no_query(self):
-        valid, msg, parsed = validate_list_params(None)
+        valid, _msg, parsed = validate_list_params(None)
         assert valid is True
         assert parsed["limit"] == DEFAULT_LIMIT
         assert parsed["type"] is None
         assert parsed["next_token"] is None
 
     def test_valid_limit_parsed_to_int(self):
-        valid, msg, parsed = validate_list_params({"limit": "10"})
+        valid, _msg, parsed = validate_list_params({"limit": "10"})
         assert valid is True
         assert parsed["limit"] == 10
 
@@ -123,15 +122,15 @@ class TestValidateListParams:
         assert "limit" in msg
 
     def test_limit_over_max_rejected(self):
-        valid, msg, _ = validate_list_params({"limit": str(MAX_LIMIT + 1)})
+        valid, _msg, _ = validate_list_params({"limit": str(MAX_LIMIT + 1)})
         assert valid is False
 
     def test_non_numeric_limit_rejected(self):
-        valid, msg, _ = validate_list_params({"limit": "abc"})
+        valid, _msg, _ = validate_list_params({"limit": "abc"})
         assert valid is False
 
     def test_valid_type_accepted(self):
-        valid, msg, parsed = validate_list_params({"type": "sensor"})
+        valid, _msg, parsed = validate_list_params({"type": "sensor"})
         assert valid is True
         assert parsed["type"] == "sensor"
 
@@ -141,10 +140,10 @@ class TestValidateListParams:
         assert "type" in msg
 
     def test_next_token_passed_through(self):
-        valid, msg, parsed = validate_list_params({"nextToken": "abc"})
+        valid, _msg, parsed = validate_list_params({"nextToken": "abc"})
         assert valid is True
         assert parsed["next_token"] == "abc"
 
     def test_empty_next_token_rejected(self):
-        valid, msg, _ = validate_list_params({"nextToken": "   "})
+        valid, _msg, _ = validate_list_params({"nextToken": "   "})
         assert valid is False

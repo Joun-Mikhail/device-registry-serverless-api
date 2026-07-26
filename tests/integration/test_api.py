@@ -8,12 +8,13 @@ Set the API_BASE_URL environment variable before running:
 
 These tests are intentionally excluded from the CI unit-test run.
 """
-import os
-import uuid
-import pytest
-import urllib.request
-import urllib.error
 import json
+import os
+import urllib.error
+import urllib.request
+import uuid
+
+import pytest
 
 BASE_URL = os.environ.get("API_BASE_URL", "").rstrip("/")
 
@@ -104,7 +105,7 @@ def test_update_device(created_device):
 
 def test_get_nonexistent_returns_404():
     skip_if_no_url()
-    status, body = _request("GET", f"/devices/{uuid.uuid4()}")
+    status, _body = _request("GET", f"/devices/{uuid.uuid4()}")
     assert status == 404
 
 
@@ -118,7 +119,7 @@ def test_create_with_invalid_type_returns_400():
 def test_delete_device():
     skip_if_no_url()
     _, created = _request("POST", "/devices", {"name": "Temp", "type": "gateway"})
-    status, body = _request("DELETE", f"/devices/{created['deviceId']}")
+    status, _body = _request("DELETE", f"/devices/{created['deviceId']}")
     assert status == 200
     gone_status, _ = _request("GET", f"/devices/{created['deviceId']}")
     assert gone_status == 404

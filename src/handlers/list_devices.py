@@ -1,7 +1,7 @@
 from repositories.device_repository import DeviceRepository
 from utils.logging import log_invocation
 from utils.pagination import decode_token, encode_token
-from utils.response import error, success, internal_error
+from utils.response import error, internal_error, success
 from validation.device_validator import validate_list_params
 
 _repository = None

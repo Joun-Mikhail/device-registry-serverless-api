@@ -1,9 +1,8 @@
 import base64
 import json
-from typing import Optional
 
 
-def encode_token(last_evaluated_key: Optional[dict]) -> Optional[str]:
+def encode_token(last_evaluated_key: dict | None) -> str | None:
     """Encode a DynamoDB LastEvaluatedKey into an opaque, URL-safe cursor.
 
     Returns None when there is no further page (caller omits nextToken).
@@ -14,7 +13,7 @@ def encode_token(last_evaluated_key: Optional[dict]) -> Optional[str]:
     return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
 
 
-def decode_token(token: Optional[str]) -> Optional[dict]:
+def decode_token(token: str | None) -> dict | None:
     """Decode an opaque cursor back into a DynamoDB ExclusiveStartKey.
 
     Raises ValueError if the token is malformed, so the caller can return 400.
