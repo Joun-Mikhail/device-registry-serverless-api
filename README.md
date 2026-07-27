@@ -47,45 +47,66 @@ is fully stateless — all state lives in DynamoDB, all compute in Lambda.
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  Client (Postman / curl / application)                               │
-└─────────────────────────┬────────────────────────────────────────────┘
-                          │ HTTPS
-                          ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  API Gateway HTTP API  (eu-central-1)                                │
-│                                                                      │
-│   POST   /devices              → CreateDeviceFunction                │
-│   GET    /devices              → ListDevicesFunction                 │
-│   GET    /devices/{deviceId}   → GetDeviceFunction                   │
-│   PATCH  /devices/{deviceId}   → UpdateDeviceFunction                │
-│   DELETE /devices/{deviceId}   → DeleteDeviceFunction                │
-└──────────┬───────────────────────────────────────────────────────────┘
-           │ Lambda invoke
-           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  Lambda Functions  (Python 3.12, 128 MB, 10 s timeout)              │
-│                                                                      │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │  handlers/       Parse event → validate → call repository   │    │
-│  │  validation/     Type checks, length limits, enum guards     │    │
-│  │  repositories/   DynamoDB operations (conditional writes)    │    │
-│  │  models/         Device dataclass + serialisation            │    │
-│  │  utils/          Shared logging (LOG_LEVEL env var) + HTTP   │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-└──────────┬───────────────────────────────────────────────────────────┘
-           │ boto3
-           ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  DynamoDB  (PAY_PER_REQUEST)                                         │
-│  Table: device-registry-dev    Partition key: deviceId (S)           │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Client["Client<br/><i>Postman · curl · application</i>"]
 
-All Lambda logs → CloudWatch Log Groups  (7-day retention)
+    subgraph AWS["AWS · eu-central-1"]
+        APIGW["API Gateway HTTP API"]
+
+        subgraph Lambdas["Lambda · Python 3.12 · 128 MB · 10s"]
+            direction TB
+            Create["CreateDeviceFunction"]
+            Read["GetDeviceFunction<br/>ListDevicesFunction"]
+            Write["UpdateDeviceFunction"]
+            Delete["DeleteDeviceFunction"]
+        end
+
+        DDB[("DynamoDB<br/>device-registry-dev<br/><i>PAY_PER_REQUEST</i>")]
+        Logs[/"CloudWatch Logs<br/><i>7-day retention</i>"/]
+    end
+
+    Client -->|"HTTPS"| APIGW
+    APIGW -->|"POST /devices"| Create
+    APIGW -->|"GET /devices<br/>GET /devices/{deviceId}"| Read
+    APIGW -->|"PATCH /devices/{deviceId}"| Write
+    APIGW -->|"DELETE /devices/{deviceId}"| Delete
+
+    Create -->|"PutItem<br/><i>conditional</i>"| DDB
+    Read -->|"GetItem · Query · Scan"| DDB
+    Write -->|"UpdateItem"| DDB
+    Delete -->|"DeleteItem<br/><i>conditional</i>"| DDB
+
+    Lambdas -.->|"structured JSON"| Logs
+
+    classDef edge fill:#e8f0fe,stroke:#4285f4,color:#1a1a1a
+    classDef store fill:#fce8e6,stroke:#ea4335,color:#1a1a1a
+    classDef obs fill:#fef7e0,stroke:#f9ab00,color:#1a1a1a
+    class Client,APIGW edge
+    class DDB store
+    class Logs obs
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the request lifecycle,
+Each request flows through four layers before reaching DynamoDB:
+
+```mermaid
+flowchart LR
+    A["handler<br/><i>parse event</i>"] --> B["validation<br/><i>type · length · enum</i>"]
+    B --> C["repository<br/><i>DynamoDB ops</i>"]
+    C --> D["model<br/><i>Device dataclass</i>"]
+    B -.->|"invalid"| E["400<br/>VALIDATION_ERROR"]
+    C -.->|"conflict"| F["409<br/>CONFLICT"]
+    C -.->|"missing"| G["404<br/>NOT_FOUND"]
+    C -.->|"unexpected"| H["500<br/>INTERNAL_ERROR"]
+
+    classDef ok fill:#e6f4ea,stroke:#34a853,color:#1a1a1a
+    classDef err fill:#fce8e6,stroke:#ea4335,color:#1a1a1a
+    class A,B,C,D ok
+    class E,F,G,H err
+```
+
+The ASCII rendering of these diagrams is kept in
+[`docs/architecture.md`](docs/architecture.md), alongside the request lifecycle,
 CI/CD pipeline diagram, DynamoDB access patterns, and IAM model.
 
 ---
@@ -103,7 +124,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Expected output: `91 passed, coverage 91%`.
+Expected output: `99 passed, coverage 91%`.
 
 ---
 
@@ -247,11 +268,11 @@ curl -X DELETE https://<api-url>/dev/devices/a3f1c2d4-...
 ```
 tests/
 ├── conftest.py                      Shared fixtures (mock DynamoDB via moto)
-├── unit/                            91 tests
+├── unit/                            99 tests
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
-│   ├── test_device_validator.py     Validation — create, update, list params (26 tests)
+│   ├── test_device_validator.py     Validation — create, update, list params (30 tests)
 │   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination, conflict (19 tests)
-│   ├── test_handlers.py             End-to-end handler logic, mocked DB (30 tests)
+│   ├── test_handlers.py             End-to-end handler logic, mocked DB (34 tests)
 │   ├── test_pagination.py           Opaque cursor encode/decode (6 tests)
 │   └── test_logging.py              Structured JSON log shape + decorator (4 tests)
 ├── contract/                        13 tests
@@ -329,29 +350,44 @@ developer's pre-commit setup.
 
 ## CI/CD Pipeline
 
-Unit tests, contract tests, and lint/secret scanning run **automatically** on
-every push and pull request.
-Deployment is **manual** via **Actions → Deploy — Device Registry API → Run workflow**.
+Two workflows. **`ci.yml`** (named *CI*, the badge above) runs the unit tests and
+the coverage gate on every push and pull request. **`deploy.yml`** adds contract
+tests and secret scanning, and holds the deploy job — which is gated on
+`workflow_dispatch`, so it never runs on a push.
 
+```mermaid
+flowchart TB
+    Push(["push · pull_request<br/>on main"]) --> CI
+    Push --> Deploy
+
+    subgraph CI["ci.yml — CI"]
+        direction TB
+        U["Unit Tests<br/><i>pytest tests/unit</i><br/><b>coverage ≥ 80%</b>"]
+        L["Lint<br/><i>ruff check .</i>"]
+    end
+
+    subgraph Deploy["deploy.yml — Deploy"]
+        direction TB
+        UT["Unit Tests"] --> CT["Contract Tests<br/><i>responses ↔ openapi.yaml</i>"]
+        LS["Lint &amp; Secret Scan<br/><i>ruff · detect-secrets</i>"]
+        CT --> Gate{"event ==<br/>workflow_dispatch?"}
+        LS --> Gate
+        Gate -->|no| Skip["skipped"]
+        Gate -->|yes| BD["Build &amp; Deploy<br/><i>OIDC → AssumeRoleWithWebIdentity</i><br/><i>sam build → sam deploy</i>"]
+    end
+
+    BD --> Stack[("CloudFormation<br/>device-registry-dev")]
+
+    classDef gate fill:#fef7e0,stroke:#f9ab00,color:#1a1a1a
+    classDef manual fill:#e8f0fe,stroke:#4285f4,color:#1a1a1a
+    classDef skip fill:#f1f3f4,stroke:#9aa0a6,color:#3c4043
+    class Gate gate
+    class BD,Stack manual
+    class Skip skip
 ```
-┌─ Unit Tests ─────────────────────┐   ┌─ Lint & Secret Scan ─────────────┐
-│  pytest tests/unit/              │   │  ruff check . →                  │
-│  coverage ≥ 80% check            │   │  detect-secrets (baselined)      │
-└───────────────┬──────────────────┘   └──────────────┬───────────────────┘
-               │ on success                          │
-┌─ Contract Tests ▼────────────────┐                  │
-│  validate docs/openapi.yaml →    │                  │
-│  responses must match the spec   │                  │
-└───────────────┬──────────────────┘                  │
-               └──────────────┬───────────────────────┘
-                              │ all green (workflow_dispatch only)
-┌─ Build & Deploy ─────────────▼─────────────────────────────────────────┐
-│  OIDC → AssumeRoleWithWebIdentity (no stored AWS keys)                  │
-│  sam build --parallel --cached                                          │
-│  sam deploy → CloudFormation changeset → device-registry-dev            │
-│  Print ApiBaseUrl, DevicesTableName, DevicesTableArn                    │
-└────────────────────────────────────────────────────────────────────────┘
-```
+
+No AWS credentials are needed for anything except the deploy job, which uses
+GitHub OIDC rather than stored keys.
 
 **First-time setup:** see [`docs/oidc-setup.md`](docs/oidc-setup.md) for the IAM
 role and GitHub secret configuration.
@@ -483,7 +519,7 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   ├── validation/                 Input validation (create, update, list params)
 │   └── utils/                      JSON logging, HTTP responses, pagination cursor
 ├── tests/
-│   ├── unit/                       91 tests, moto-mocked DynamoDB
+│   ├── unit/                       99 tests, moto-mocked DynamoDB
 │   ├── contract/                   13 tests, response ↔ OpenAPI conformance
 │   └── integration/                10 tests, skipped unless API_BASE_URL is set
 ├── template.yaml                   AWS SAM infrastructure definition
