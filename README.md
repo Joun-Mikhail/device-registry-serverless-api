@@ -500,6 +500,9 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 .
 ├── .github/
 │   ├── dependabot.yml              Weekly pip dependency updates
+│   ├── CODEOWNERS                  Review ownership
+│   ├── pull_request_template.md    PR checklist
+│   ├── ISSUE_TEMPLATE/             Bug report and feature request forms
 │   └── workflows/
 │       ├── ci.yml                  CI pipeline (unit tests + coverage gate + lint)
 │       └── deploy.yml              CD pipeline (contract tests + manual SAM deploy)
@@ -530,6 +533,8 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 ├── .pre-commit-config.yaml         Local lint / whitespace / secret-scan hooks
 ├── .secrets.baseline               Reviewed detect-secrets baseline
 ├── .gitignore                      Build, cache, venv, and credential exclusions
+├── CONTRIBUTING.md                 Setup, the checks CI runs, layering rules
+├── CHANGELOG.md                    Keep a Changelog format
 ├── LICENSE                         MIT
 └── requirements*.txt               Runtime and dev dependencies
 ```
@@ -550,6 +555,14 @@ In priority order:
 2. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
 3. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
 4. **CloudWatch metrics & alarms** — error-rate / p95-latency alarms (needs a live stack).
+
+---
+
+## Contributing
+
+Setup, the exact checks CI enforces, and the layering conventions are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Notable changes are tracked in
+[`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/Joun-Mikhail/device-registry-serverless-api/blob/main/CONTRIBUTING.md
+    about: Local setup, the checks CI runs, and the layered layout.
+  - name: Architecture notes
+    url: https://github.com/Joun-Mikhail/device-registry-serverless-api/blob/main/docs/architecture.md
+    about: Request lifecycle, DynamoDB access patterns, and the IAM model.
