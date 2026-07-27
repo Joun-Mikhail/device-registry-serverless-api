@@ -1,6 +1,6 @@
 import json
 
-from models.device import Device
+from models.device import DEFAULT_STATUS, Device
 from repositories.device_repository import DeviceAlreadyExistsError, get_repository
 from utils.logging import log_invocation
 from utils.response import conflict, error, internal_error, success
@@ -21,7 +21,7 @@ def handler(event: dict, context) -> dict:
     device = Device(
         name=body["name"].strip(),
         type=body["type"],
-        status=body.get("status", "active"),
+        status=body.get("status", DEFAULT_STATUS),
         location=body.get("location"),
         metadata=body.get("metadata"),
     )

@@ -1,6 +1,7 @@
 from validation.device_validator import (
     DEFAULT_LIMIT,
     MAX_LIMIT,
+    MAX_NAME_LENGTH,
     validate_create_payload,
     validate_list_params,
     validate_update_payload,
@@ -146,4 +147,29 @@ class TestValidateListParams:
 
     def test_empty_next_token_rejected(self):
         valid, _msg, _ = validate_list_params({"nextToken": "   "})
+        assert valid is False
+
+
+class TestNameLengthBoundary:
+    """Handlers persist name.strip(), so the length limit must bound the stored
+    value. Measuring the raw input rejected names that fit once trimmed."""
+
+    def test_name_at_limit_with_surrounding_whitespace_is_accepted(self):
+        name = " " * 3 + "x" * MAX_NAME_LENGTH + " " * 3
+        valid, _ = validate_create_payload({"name": name, "type": "sensor"})
+        assert valid is True
+
+    def test_name_over_limit_after_stripping_is_rejected(self):
+        name = "x" * (MAX_NAME_LENGTH + 1) + "   "
+        valid, message = validate_create_payload({"name": name, "type": "sensor"})
+        assert valid is False
+        assert str(MAX_NAME_LENGTH) in message
+
+    def test_update_name_at_limit_with_whitespace_is_accepted(self):
+        name = "  " + "x" * MAX_NAME_LENGTH + "  "
+        valid, _ = validate_update_payload({"name": name})
+        assert valid is True
+
+    def test_update_name_over_limit_after_stripping_is_rejected(self):
+        valid, _ = validate_update_payload({"name": "x" * (MAX_NAME_LENGTH + 1)})
         assert valid is False
