@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Device Registry API — Joun Mikhail</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0;
+    --card:#ffffff; --accent:#0969da; --ok:#1a7f37; --okbg:#dafbe1; --warnbg:#fff8c5; --warnline:#d4a72c;
+    --code:#f6f8fa;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d;
+           --card:#151b23; --accent:#4493f8; --ok:#3fb950; --okbg:#0f2417; --warnbg:#2b2412; --warnline:#9e6a03;
+           --code:#151b23; }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d;
+    --card:#151b23; --accent:#4493f8; --ok:#3fb950; --okbg:#0f2417; --warnbg:#2b2412; --warnline:#9e6a03; --code:#151b23;
+  }
+  :root[data-theme="light"]{
+    --bg:#ffffff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0;
+    --card:#ffffff; --accent:#0969da; --ok:#1a7f37; --okbg:#dafbe1; --warnbg:#fff8c5; --warnline:#d4a72c; --code:#f6f8fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:56px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:36px}
+  h1{font-size:2.1rem;margin:0 0 8px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:1.05rem}
+  .badges img{height:20px;margin:0 6px 6px 0;vertical-align:middle}
+  h2{font-size:1.25rem;margin:40px 0 14px;letter-spacing:-.01em}
+  p{margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin:22px 0}
+  .card{border:1px solid var(--line);border-radius:10px;padding:20px;background:var(--card);
+    text-decoration:none;color:inherit;display:block;transition:border-color .15s, transform .15s}
+  .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .card h3{margin:0 0 6px;font-size:1rem;color:var(--accent)}
+  .card p{margin:0;font-size:.9rem;color:var(--muted)}
+  .note{border:1px solid var(--warnline);background:var(--warnbg);border-radius:8px;padding:16px 18px;margin:26px 0;font-size:.93rem}
+  .note strong{display:block;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:.93rem;display:block;overflow-x:auto}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
+  th{font-weight:600;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+  code{background:var(--code);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:.87em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:15px 17px;overflow-x:auto;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;line-height:1.5}
+  pre code{background:none;border:none;padding:0}
+  .pass{color:var(--ok);font-weight:600}
+  .pill{display:inline-block;background:var(--okbg);color:var(--ok);border-radius:20px;
+    padding:3px 11px;font-size:.8rem;font-weight:600;margin-bottom:14px}
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);font-size:.87rem}
+  a{color:var(--accent)}
+  img.shot{width:100%;border:1px solid var(--line);border-radius:8px;margin:14px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="pill">Portfolio project</span>
+  <h1>Device Registry API</h1>
+  <p class="sub">A serverless REST API for managing IoT devices — Python, AWS Lambda, DynamoDB, deployed with AWS SAM.</p>
+  <div class="badges">
+    <a href="https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg"></a>
+    <img alt="Coverage 91%" src="https://img.shields.io/badge/coverage-91%25-brightgreen">
+    <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-blue">
+    <img alt="MIT" src="https://img.shields.io/badge/license-MIT-green">
+  </div>
+</header>
+
+<p>This service keeps an authoritative list of connected equipment — sensors, gateways,
+controllers — and lets other software add, look up, search, update and remove them.
+It is the address book behind the hardware.</p>
+
+<div class="grid">
+  <a class="card" href="./api/">
+    <h3>API documentation →</h3>
+    <p>Every endpoint, request and response, generated from the project's OpenAPI 3.0 contract.</p>
+  </a>
+  <a class="card" href="./coverage/">
+    <h3>Test coverage report →</h3>
+    <p>Line-by-line coverage, regenerated on every deploy of this page.</p>
+  </a>
+  <a class="card" href="https://github.com/Joun-Mikhail/device-registry-serverless-api">
+    <h3>Source code →</h3>
+    <p>Full repository, commit history, and the CI pipeline that verifies every change.</p>
+  </a>
+  <a class="card" href="https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml">
+    <h3>Live CI runs →</h3>
+    <p>Every automated check GitHub has run, pass or fail. Not editable by hand.</p>
+  </a>
+</div>
+
+<div class="note">
+  <strong>About this page, and what it is not</strong>
+  This site is generated from the repository on every push: the API documentation is
+  rendered from the real OpenAPI contract, and the coverage report is produced by
+  actually running the test suite in CI. The API itself is <em>not</em> deployed to a
+  public address — a permanently running cloud environment costs money, and no
+  authentication layer has been built yet, so exposing it publicly would be the wrong
+  call. Everything shown here is generated from code and tests, never hand-written.
+</div>
+
+<h2>What the tests report</h2>
+<p>Output from the test suite, reproduced verbatim:</p>
+<pre><code>============================= <span class="pass">99 passed</span> in 12.81s ==============================
+Required test coverage of 80% reached. Total coverage: 91.07%
+
+============================== <span class="pass">13 passed</span> in 2.83s ==============================</code></pre>
+
+<table>
+  <tr><th>Area under test</th><th>Checks</th><th>What it confirms</th></tr>
+  <tr><td>Request handling</td><td>34</td><td>Each action replies correctly, including on malformed input</td></tr>
+  <tr><td>Input validation</td><td>30</td><td>Bad data is rejected with a clear reason rather than stored</td></tr>
+  <tr><td>Database operations</td><td>19</td><td>Records save, load, update and delete correctly</td></tr>
+  <tr><td>Search and paging</td><td>6</td><td>Long lists come back in pages, not all at once</td></tr>
+  <tr><td>Data structure</td><td>6</td><td>Records keep their shape when written and read back</td></tr>
+  <tr><td>Diagnostic logging</td><td>4</td><td>Every request leaves a traceable record</td></tr>
+  <tr><td>Published contract</td><td>13</td><td>Replies still match the documented API shape</td></tr>
+</table>
+
+<h2>The API, running</h2>
+<p>The service runs locally with no AWS account required, backed by an in-memory
+DynamoDB simulator. This is a real session against the real handler code:</p>
+<img class="shot" src="./images/api-session.png" alt="Terminal session showing real API requests and responses">
+<p>Reproduce it in two commands:</p>
+<pre><code>pip install -r requirements-dev.txt
+python scripts/local_server.py --seed</code></pre>
+
+<h2>Built with</h2>
+<table>
+  <tr><th>Layer</th><th>Technology</th></tr>
+  <tr><td>Compute</td><td>AWS Lambda (Python 3.12), five functions — one per endpoint</td></tr>
+  <tr><td>Routing</td><td>API Gateway HTTP API</td></tr>
+  <tr><td>Storage</td><td>DynamoDB, with a secondary index for filtering by device type</td></tr>
+  <tr><td>Infrastructure</td><td>AWS SAM — every resource declared in <code>template.yaml</code></td></tr>
+  <tr><td>CI</td><td>GitHub Actions: tests, coverage gate, lint, secret scanning</td></tr>
+  <tr><td>Deployment auth</td><td>GitHub OIDC — no long-lived AWS keys stored anywhere</td></tr>
+</table>
+
+<footer>
+  Built by <a href="https://github.com/Joun-Mikhail">Joun Mikhail</a> ·
+  <a href="https://github.com/Joun-Mikhail/device-registry-serverless-api">Source</a> ·
+  MIT licensed · This page is rebuilt automatically from <code>main</code>.
+</footer>
+
+</div>
+</body>
+</html>
