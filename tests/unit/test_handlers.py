@@ -282,3 +282,47 @@ class TestDeleteDevice:
         from handlers.delete_device import handler
         resp = handler({"pathParameters": {}, "body": None}, None)
         assert resp["statusCode"] == 400
+
+
+# ── Null pathParameters (API Gateway sends null, not {}) ──────────────────
+
+
+class TestNullPathParameters:
+    """API Gateway sends pathParameters as null rather than omitting the key when
+    a route matches with no path values. Handlers must return a structured 400
+    rather than raising, which would surface to the caller as a raw 502."""
+
+    @staticmethod
+    def _null_path_event(method, body=None):
+        return {
+            "httpMethod": method,
+            "pathParameters": None,
+            "queryStringParameters": None,
+            "body": json.dumps(body) if body is not None else None,
+        }
+
+    def test_get_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.get_device")
+        from handlers.get_device import handler
+        response = handler(self._null_path_event("GET"), None)
+        assert response["statusCode"] == 400
+
+    def test_delete_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.delete_device")
+        from handlers.delete_device import handler
+        response = handler(self._null_path_event("DELETE"), None)
+        assert response["statusCode"] == 400
+
+    def test_update_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.update_device")
+        from handlers.update_device import handler
+        response = handler(self._null_path_event("PATCH", {"status": "inactive"}), None)
+        assert response["statusCode"] == 400
+
+    def test_null_path_parameters_yields_structured_error_body(self):
+        _reset("handlers.get_device")
+        from handlers.get_device import handler
+        response = handler(self._null_path_event("GET"), None)
+        body = json.loads(response["body"])
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+        assert "deviceId" in body["error"]["message"]
