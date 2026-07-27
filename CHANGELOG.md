@@ -11,6 +11,16 @@ everything to date sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- Published project site at
+  <https://joun-mikhail.github.io/device-registry-serverless-api/> — API reference
+  rendered from the OpenAPI contract, a coverage report regenerated on every push,
+  and a plain-language overview. Served from the `gh-pages` branch.
+- `scripts/local_server.py`, which serves the real handlers over HTTP against an
+  in-memory DynamoDB, so the API can be run and explored without an AWS account.
+- Real captured evidence in `docs/evidence/images/`: an API request/response
+  session and the coverage report.
+- Plain-language introduction and a verifiable-evidence section in the README,
+  aimed at non-specialist reviewers.
 - `CI` workflow running unit tests with an 80% coverage gate and `ruff` lint on
   every push and pull request (Python 3.12).
 - Dependabot configuration for weekly `pip` updates.
