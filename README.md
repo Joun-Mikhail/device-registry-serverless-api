@@ -5,6 +5,8 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+**[→ Live project site](https://joun-mikhail.github.io/device-registry-serverless-api/)** — interactive API reference, live coverage report, and a plain-language overview.
+
 > A REST API for registering and managing IoT devices, built as a portfolio project
 > to practise serverless patterns end to end.
 > Built with Python, AWS Lambda, API Gateway HTTP API, and DynamoDB,
@@ -136,13 +138,35 @@ drops below 80%, so the number cannot quietly rot.
 | Diagnostic logging | 4 | Every request leaves a traceable record |
 | Published contract | 13 | Replies still match the shape the service promised |
 
-**4 — The full history is public.** Every change is a separate, reviewable entry
+**4 — The API, actually running.** You can run it yourself in two commands, with no
+AWS account — an in-memory DynamoDB stands in for the real one, and every other
+layer is the code that would run in Lambda:
+
+```bash
+pip install -r requirements-dev.txt
+python scripts/local_server.py --seed
+```
+
+Below is a real session against that server — a successful create, a filtered and
+paginated list, a rejected invalid request, and a lookup that finds nothing. The
+output is reproduced exactly as the server returned it:
+
+![A terminal session showing real requests to the API and the responses it returned](docs/evidence/images/api-session.png)
+
+**5 — The coverage report, generated from the test run:**
+
+![Per-file test coverage report showing 91% overall](docs/evidence/images/coverage-report.png)
+
+It is also [published live](https://joun-mikhail.github.io/device-registry-serverless-api/coverage/),
+regenerated automatically every time the code changes.
+
+**6 — The full history is public.** Every change is a separate, reviewable entry
 in the [commit history](https://github.com/Joun-Mikhail/device-registry-serverless-api/commits/main),
 each explaining what changed and why.
 
-> **On the one thing that is not demonstrated:** this service has not been deployed
-> to a public address, so there is no live link to click and no screenshots of it
-> running. That is a deliberate choice — a permanently running cloud environment
+> **On the one thing that is not demonstrated:** the service has not been deployed
+> to a public *cloud* address, so there is no internet-facing endpoint to send
+> requests to. The screenshots above are of it running locally. That is a deliberate choice — a permanently running cloud environment
 > costs money and, without an authentication layer built yet, should not be exposed
 > publicly. Everything above is verified by automated tests against a simulated
 > cloud database, which is standard practice and how the vast majority of
