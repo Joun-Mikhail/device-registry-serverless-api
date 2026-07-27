@@ -18,12 +18,14 @@ def _event(method="POST", body=None, path_params=None, query=None):
     }
 
 
-def _reset(module_path: str):
-    """Reset the module-level repository singleton so each test gets a fresh client."""
-    import sys
-    mod = sys.modules.get(module_path)
-    if mod:
-        mod._repository = None
+def _reset(module_path: str = ""):
+    """Reset the shared repository singleton so each test gets a fresh client.
+
+    The module_path argument is retained so existing call sites read unchanged;
+    the singleton now lives in repositories.device_repository.
+    """
+    from repositories.device_repository import reset_repository
+    reset_repository()
 
 
 def _create(body):
@@ -96,20 +98,20 @@ class TestCreateDevice:
         assert resp["statusCode"] == 400
 
     def test_duplicate_id_returns_409(self):
-        # Force a conflict by stubbing the repository to raise on create.
-        import handlers.create_device as m
+        # Force a conflict by stubbing the shared repository to raise on create.
+        import repositories.device_repository as repo_module
         from repositories.device_repository import DeviceAlreadyExistsError
 
         class _ConflictRepo:
             def create(self, device):
                 raise DeviceAlreadyExistsError(device.device_id)
 
-        m._repository = _ConflictRepo()
+        repo_module._repository = _ConflictRepo()
         try:
             from handlers.create_device import handler
             resp = handler(_event("POST", {"name": "Dup", "type": "sensor"}), None)
         finally:
-            m._repository = None
+            repo_module.reset_repository()
         assert resp["statusCode"] == 409
         assert json.loads(resp["body"])["error"]["code"] == "CONFLICT"
 

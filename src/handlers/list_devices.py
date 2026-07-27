@@ -1,17 +1,8 @@
-from repositories.device_repository import DeviceRepository
+from repositories.device_repository import get_repository
 from utils.logging import log_invocation
 from utils.pagination import decode_token, encode_token
 from utils.response import error, internal_error, success
 from validation.device_validator import validate_list_params
-
-_repository = None
-
-
-def _get_repository() -> DeviceRepository:
-    global _repository
-    if _repository is None:
-        _repository = DeviceRepository()
-    return _repository
 
 
 @log_invocation("ListDevices")
@@ -31,7 +22,7 @@ def handler(event: dict, context) -> dict:
         # NOTE: Uses DynamoDB Scan when unfiltered — bounded per request by limit.
         # When type is given, queries the type-createdAt GSI instead. At scale,
         # replace the unfiltered Scan with a materialised index.
-        devices, last_key = _get_repository().list_paginated(
+        devices, last_key = get_repository().list_paginated(
             limit=params["limit"],
             start_key=start_key,
             device_type=params["type"],

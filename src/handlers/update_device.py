@@ -1,18 +1,9 @@
 import json
 
-from repositories.device_repository import DeviceRepository
+from repositories.device_repository import get_repository
 from utils.logging import log_invocation
 from utils.response import error, internal_error, not_found, success
 from validation.device_validator import validate_update_payload
-
-_repository = None
-
-
-def _get_repository() -> DeviceRepository:
-    global _repository
-    if _repository is None:
-        _repository = DeviceRepository()
-    return _repository
 
 
 @log_invocation("UpdateDevice")
@@ -40,7 +31,7 @@ def handler(event: dict, context) -> dict:
         updates["name"] = updates["name"].strip()
 
     try:
-        updated = _get_repository().update(device_id, updates)
+        updated = get_repository().update(device_id, updates)
         if updated is None:
             return not_found("Device")
         return success(updated.to_response())

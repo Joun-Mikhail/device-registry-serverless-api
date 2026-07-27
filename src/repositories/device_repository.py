@@ -128,3 +128,26 @@ class DeviceRepository:
                 return False
             logger.error("DynamoDB delete_item failed: %s", exc.response["Error"])
             raise
+
+
+# Module-level singleton. Each Lambda function runs in its own container, so this
+# is per-function state reused across warm invocations, not shared between them.
+_repository: DeviceRepository | None = None
+
+
+def get_repository() -> DeviceRepository:
+    """Return the cached repository, constructing it on first use.
+
+    Deferring construction keeps DEVICES_TABLE and the boto3 client out of module
+    import time, so importing a handler does not require AWS configuration.
+    """
+    global _repository
+    if _repository is None:
+        _repository = DeviceRepository()
+    return _repository
+
+
+def reset_repository() -> None:
+    """Drop the cached repository. Used by tests to isolate DynamoDB mocks."""
+    global _repository
+    _repository = None
