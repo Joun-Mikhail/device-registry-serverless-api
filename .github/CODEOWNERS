@@ -1,0 +1,7 @@
+# Every change in this repository is reviewed by the owner.
+# Syntax: https://docs.github.com/articles/about-code-owners
+*                       @Joun-Mikhail
+
+# Infrastructure and CI changes carry the most deployment risk.
+/template.yaml          @Joun-Mikhail
+/.github/workflows/     @Joun-Mikhail

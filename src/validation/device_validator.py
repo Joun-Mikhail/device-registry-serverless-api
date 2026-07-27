@@ -1,5 +1,5 @@
 
-from models.device import VALID_STATUSES, VALID_TYPES
+from models.device import DEFAULT_STATUS, VALID_STATUSES, VALID_TYPES
 
 MAX_NAME_LENGTH = 100
 MAX_LOCATION_LENGTH = 200
@@ -50,7 +50,8 @@ def validate_create_payload(body: dict) -> tuple[bool, str | None]:
     name = body.get("name")
     if not name or not isinstance(name, str) or not name.strip():
         return False, "'name' is required and must be a non-empty string."
-    if len(name) > MAX_NAME_LENGTH:
+    # Handlers store name.strip(), so bound the stored value, not the raw input.
+    if len(name.strip()) > MAX_NAME_LENGTH:
         return False, f"'name' must not exceed {MAX_NAME_LENGTH} characters."
 
     device_type = body.get("type")
@@ -59,7 +60,7 @@ def validate_create_payload(body: dict) -> tuple[bool, str | None]:
     if device_type not in VALID_TYPES:
         return False, f"'type' must be one of: {sorted(VALID_TYPES)}."
 
-    status = body.get("status", "active")
+    status = body.get("status", DEFAULT_STATUS)
     if status not in VALID_STATUSES:
         return False, f"'status' must be one of: {sorted(VALID_STATUSES)}."
 
@@ -94,7 +95,8 @@ def validate_update_payload(body: dict) -> tuple[bool, str | None]:
         name = body["name"]
         if not isinstance(name, str) or not name.strip():
             return False, "'name' must be a non-empty string."
-        if len(name) > MAX_NAME_LENGTH:
+        # Handlers store name.strip(), so bound the stored value, not the raw input.
+        if len(name.strip()) > MAX_NAME_LENGTH:
             return False, f"'name' must not exceed {MAX_NAME_LENGTH} characters."
 
     if "type" in body:

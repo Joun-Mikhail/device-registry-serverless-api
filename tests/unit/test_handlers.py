@@ -18,12 +18,14 @@ def _event(method="POST", body=None, path_params=None, query=None):
     }
 
 
-def _reset(module_path: str):
-    """Reset the module-level repository singleton so each test gets a fresh client."""
-    import sys
-    mod = sys.modules.get(module_path)
-    if mod:
-        mod._repository = None
+def _reset(module_path: str = ""):
+    """Reset the shared repository singleton so each test gets a fresh client.
+
+    The module_path argument is retained so existing call sites read unchanged;
+    the singleton now lives in repositories.device_repository.
+    """
+    from repositories.device_repository import reset_repository
+    reset_repository()
 
 
 def _create(body):
@@ -96,20 +98,20 @@ class TestCreateDevice:
         assert resp["statusCode"] == 400
 
     def test_duplicate_id_returns_409(self):
-        # Force a conflict by stubbing the repository to raise on create.
-        import handlers.create_device as m
+        # Force a conflict by stubbing the shared repository to raise on create.
+        import repositories.device_repository as repo_module
         from repositories.device_repository import DeviceAlreadyExistsError
 
         class _ConflictRepo:
             def create(self, device):
                 raise DeviceAlreadyExistsError(device.device_id)
 
-        m._repository = _ConflictRepo()
+        repo_module._repository = _ConflictRepo()
         try:
             from handlers.create_device import handler
             resp = handler(_event("POST", {"name": "Dup", "type": "sensor"}), None)
         finally:
-            m._repository = None
+            repo_module.reset_repository()
         assert resp["statusCode"] == 409
         assert json.loads(resp["body"])["error"]["code"] == "CONFLICT"
 
@@ -282,3 +284,47 @@ class TestDeleteDevice:
         from handlers.delete_device import handler
         resp = handler({"pathParameters": {}, "body": None}, None)
         assert resp["statusCode"] == 400
+
+
+# ── Null pathParameters (API Gateway sends null, not {}) ──────────────────
+
+
+class TestNullPathParameters:
+    """API Gateway sends pathParameters as null rather than omitting the key when
+    a route matches with no path values. Handlers must return a structured 400
+    rather than raising, which would surface to the caller as a raw 502."""
+
+    @staticmethod
+    def _null_path_event(method, body=None):
+        return {
+            "httpMethod": method,
+            "pathParameters": None,
+            "queryStringParameters": None,
+            "body": json.dumps(body) if body is not None else None,
+        }
+
+    def test_get_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.get_device")
+        from handlers.get_device import handler
+        response = handler(self._null_path_event("GET"), None)
+        assert response["statusCode"] == 400
+
+    def test_delete_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.delete_device")
+        from handlers.delete_device import handler
+        response = handler(self._null_path_event("DELETE"), None)
+        assert response["statusCode"] == 400
+
+    def test_update_returns_400_when_path_parameters_is_null(self):
+        _reset("handlers.update_device")
+        from handlers.update_device import handler
+        response = handler(self._null_path_event("PATCH", {"status": "inactive"}), None)
+        assert response["statusCode"] == 400
+
+    def test_null_path_parameters_yields_structured_error_body(self):
+        _reset("handlers.get_device")
+        from handlers.get_device import handler
+        response = handler(self._null_path_event("GET"), None)
+        body = json.loads(response["body"])
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+        assert "deviceId" in body["error"]["message"]

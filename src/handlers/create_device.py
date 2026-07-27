@@ -1,19 +1,10 @@
 import json
 
-from models.device import Device
-from repositories.device_repository import DeviceAlreadyExistsError, DeviceRepository
+from models.device import DEFAULT_STATUS, Device
+from repositories.device_repository import DeviceAlreadyExistsError, get_repository
 from utils.logging import log_invocation
 from utils.response import conflict, error, internal_error, success
 from validation.device_validator import validate_create_payload
-
-_repository = None
-
-
-def _get_repository() -> DeviceRepository:
-    global _repository
-    if _repository is None:
-        _repository = DeviceRepository()
-    return _repository
 
 
 @log_invocation("CreateDevice")
@@ -30,13 +21,13 @@ def handler(event: dict, context) -> dict:
     device = Device(
         name=body["name"].strip(),
         type=body["type"],
-        status=body.get("status", "active"),
+        status=body.get("status", DEFAULT_STATUS),
         location=body.get("location"),
         metadata=body.get("metadata"),
     )
 
     try:
-        created = _get_repository().create(device)
+        created = get_repository().create(device)
         return success(created.to_response(), status_code=201)
     except DeviceAlreadyExistsError:
         return conflict("A device with this ID already exists.")

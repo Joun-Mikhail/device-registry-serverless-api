@@ -5,13 +5,17 @@ from datetime import UTC, datetime
 VALID_TYPES = {"sensor", "actuator", "gateway", "controller"}
 VALID_STATUSES = {"active", "inactive", "maintenance"}
 
+# Applied when a caller omits 'status' on create, and when reading a legacy item
+# written before 'status' was persisted.
+DEFAULT_STATUS = "active"
+
 
 @dataclass
 class Device:
     name: str
     type: str
     device_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    status: str = "active"
+    status: str = DEFAULT_STATUS
     location: str | None = None
     metadata: dict | None = None
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
@@ -44,7 +48,7 @@ class Device:
             device_id=item["deviceId"],
             name=item["name"],
             type=item["type"],
-            status=item.get("status", "active"),
+            status=item.get("status", DEFAULT_STATUS),
             location=item.get("location"),
             metadata=item.get("metadata"),
             created_at=item["createdAt"],
