@@ -39,8 +39,31 @@ jobs:
           pytest tests/unit/ \
             --cov=src \
             --cov-report=term-missing \
-            --cov-fail-under=80 \
+            --cov-fail-under=91 \
             -v
+
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Single entry today; adding a version is one line here.
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: mypy
+        run: mypy
 
   lint:
     name: Lint
