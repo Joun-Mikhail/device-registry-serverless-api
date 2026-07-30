@@ -170,7 +170,12 @@ class Handler(BaseHTTPRequestHandler):
     def _respond(self, status: int, body: str, headers: dict | None = None) -> None:
         payload = (body or "").encode("utf-8")
         self.send_response(status)
+        # The preflight alone is not enough: a browser also requires the header on
+        # the actual response, so the local UI at a different port can read it.
+        self.send_header("Access-Control-Allow-Origin", "*")
         for key, value in (headers or {"Content-Type": "application/json"}).items():
+            if key.lower() == "access-control-allow-origin":
+                continue
             self.send_header(key, value)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -194,7 +199,7 @@ class Handler(BaseHTTPRequestHandler):
             "",
             {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Headers": "Content-Type,x-api-key",
                 "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
             },
         )

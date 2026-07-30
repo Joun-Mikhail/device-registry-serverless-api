@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230969da'/%3E%3Crect x='4' y='4.5' width='8' height='7' rx='1' fill='%23fff'/%3E%3C/svg%3E">
+<title>Device Registry — Manage devices</title>
+<style>
+  :root{
+    --bg:#f6f8fa; --panel:#fff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0;
+    --accent:#0969da; --accent-fg:#fff;
+    --ok:#1a7f37; --okbg:#dafbe1; --warn:#9a6700; --warnbg:#fff8c5;
+    --danger:#cf222e; --dangerbg:#ffebe9; --code:#f6f8fa;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#0d1117; --panel:#151b23; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d;
+           --accent:#4493f8; --ok:#3fb950; --okbg:#0f2417; --warn:#d29922; --warnbg:#2b2412;
+           --danger:#f85149; --dangerbg:#2d1214; --code:#0d1117; }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --panel:#151b23; --fg:#e6edf3; --muted:#9198a1; --line:#3d444d;
+    --accent:#4493f8; --ok:#3fb950; --okbg:#0f2417; --warn:#d29922; --warnbg:#2b2412;
+    --danger:#f85149; --dangerbg:#2d1214; --code:#0d1117;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#fff; --fg:#1f2328; --muted:#59636e; --line:#d1d9e0;
+    --accent:#0969da; --ok:#1a7f37; --okbg:#dafbe1; --warn:#9a6700; --warnbg:#fff8c5;
+    --danger:#cf222e; --dangerbg:#ffebe9; --code:#f6f8fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1020px;margin:0 auto;padding:28px 18px 72px}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  h1{font-size:1.6rem;margin:0;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:.95rem}
+  a{color:var(--accent)}
+
+  .banner{border:1px solid var(--line);background:var(--warnbg);border-radius:8px;
+    padding:12px 14px;margin:0 0 18px;font-size:.88rem;display:flex;gap:10px;align-items:flex-start}
+  .banner b{display:block;margin-bottom:2px}
+  .banner.live{background:var(--okbg);border-color:var(--ok)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+  .panel h2{font-size:1rem;margin:0 0 14px;letter-spacing:-.01em}
+
+  .row{display:flex;flex-wrap:wrap;gap:12px}
+  .field{display:flex;flex-direction:column;gap:5px;flex:1 1 190px;min-width:0}
+  .field label{font-size:.8rem;font-weight:600;color:var(--muted)}
+  .field .hint{font-size:.75rem;color:var(--muted);font-weight:400}
+  input,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
+    background:var(--panel);color:var(--fg);width:100%;min-width:0}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  input[aria-invalid="true"]{border-color:var(--danger)}
+  .err{color:var(--danger);font-size:.78rem;min-height:1em}
+
+  button{font:inherit;font-weight:600;padding:8px 15px;border-radius:7px;border:1px solid var(--line);
+    background:var(--panel);color:var(--fg);cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{filter:brightness(1.08);color:#fff}
+  button.danger{color:var(--danger);border-color:var(--line)}
+  button.danger:hover{border-color:var(--danger);background:var(--dangerbg)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.sm{padding:4px 9px;font-size:.8rem;font-weight:500}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  tbody tr:hover{background:var(--bg)}
+  .name{font-weight:600}
+  .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.72rem;color:var(--muted)}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.75rem;font-weight:600;white-space:nowrap}
+  .s-active{background:var(--okbg);color:var(--ok)}
+  .s-inactive{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+  .s-maintenance{background:var(--warnbg);color:var(--warn)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .count{color:var(--muted);font-size:.85rem}
+  .empty{text-align:center;padding:36px 12px;color:var(--muted)}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel);
+    border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:11px 16px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+  .toast.show{opacity:1}
+  .toast.bad{border-left-color:var(--danger)}
+  details summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:.83rem}
+  @media (max-width:620px){ .hide-sm{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Device Registry</h1>
+  <div class="count" id="mode-label">Demo mode</div>
+</header>
+<p class="sub">Add, search and manage connected equipment.</p>
+
+<div class="banner" id="banner">
+  <div>
+    <b id="banner-title">Demo mode — nothing is saved to a server</b>
+    <span id="banner-body">Everything you do here stays in this browser tab and disappears when you close it.
+    The rules that accept or reject your input are the same ones the real service uses.
+    To point this at a live deployment, open <em>Connect to a live API</em> below.</span>
+  </div>
+</div>
+
+<div class="panel">
+  <details id="conn-details">
+    <summary>Connect to a live API</summary>
+    <div class="row" style="margin-top:14px">
+      <div class="field">
+        <label for="api-url">API base URL</label>
+        <input id="api-url" placeholder="https://xxxx.execute-api.eu-central-1.amazonaws.com/dev" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="api-key">API key <span class="hint">sent as x-api-key</span></label>
+        <input id="api-key" type="password" placeholder="your API key" autocomplete="off">
+      </div>
+      <div class="field" style="flex:0 0 auto;justify-content:flex-end">
+        <div class="row">
+          <button class="primary" id="connect">Connect</button>
+          <button id="disconnect">Use demo</button>
+        </div>
+      </div>
+    </div>
+    <p class="hint" style="margin:10px 0 0">
+      Stored in this tab only (<code>sessionStorage</code>), never sent anywhere except the URL you enter.
+    </p>
+  </details>
+</div>
+
+<div class="panel">
+  <h2>Add a device</h2>
+  <form id="add-form" novalidate>
+    <div class="row">
+      <div class="field">
+        <label for="f-name">Name <span class="hint">required, up to 100 characters</span></label>
+        <input id="f-name" maxlength="120" placeholder="Cold Store Probe">
+        <div class="err" id="e-name"></div>
+      </div>
+      <div class="field" style="flex:0 1 170px">
+        <label for="f-type">Type <span class="hint">required</span></label>
+        <select id="f-type">
+          <option value="">Choose…</option>
+          <option value="sensor">Sensor</option>
+          <option value="actuator">Actuator</option>
+          <option value="gateway">Gateway</option>
+          <option value="controller">Controller</option>
+        </select>
+        <div class="err" id="e-type"></div>
+      </div>
+      <div class="field" style="flex:0 1 170px">
+        <label for="f-status">Status</label>
+        <select id="f-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="maintenance">Maintenance</option>
+        </select>
+        <div class="err"></div>
+      </div>
+      <div class="field">
+        <label for="f-location">Location <span class="hint">optional</span></label>
+        <input id="f-location" maxlength="220" placeholder="Warehouse B">
+        <div class="err" id="e-location"></div>
+      </div>
+      <div class="field" style="flex:0 0 auto;justify-content:flex-end">
+        <div class="err"></div>
+        <button class="primary" type="submit" id="add-btn">Add device</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="toolbar">
+    <h2 style="margin:0">Devices</h2>
+    <div class="row" style="align-items:center">
+      <select id="filter-type" style="width:auto">
+        <option value="">All types</option>
+        <option value="sensor">Sensor</option>
+        <option value="actuator">Actuator</option>
+        <option value="gateway">Gateway</option>
+        <option value="controller">Controller</option>
+      </select>
+      <span class="count" id="count">—</span>
+      <button class="sm" id="refresh">Refresh</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th><th style="width:110px">Type</th><th style="width:150px">Status</th>
+        <th class="hide-sm">Location</th><th class="hide-sm" style="width:110px">Added</th>
+        <th style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="empty" id="empty" hidden>No devices yet. Add one above.</div>
+  <div style="margin-top:14px;text-align:center">
+    <button id="more" hidden>Load more</button>
+  </div>
+</div>
+
+<footer>
+  <a href="./">← Project overview</a> ·
+  <a href="./api/">API reference</a> ·
+  <a href="https://github.com/Joun-Mikhail/device-registry-serverless-api">Source</a>
+</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ── Validation ──────────────────────────────────────────────────────────────
+   Mirrors src/validation/device_validator.py. Kept deliberately in step with it:
+   the same limits, the same allowed values, the same messages a caller would get
+   back from the API. Client-side checks are a courtesy, not a control — the
+   server validates independently.                                             */
+const MAX_NAME = 100, MAX_LOCATION = 200, PAGE_SIZE = 25;
+const TYPES = ["sensor","actuator","gateway","controller"];
+const STATUSES = ["active","inactive","maintenance"];
+
+function validate(d){
+  const errs = {};
+  const name = (d.name || "").trim();
+  if (!name) errs.name = "Name is required.";
+  else if (name.length > MAX_NAME) errs.name = `Name must not exceed ${MAX_NAME} characters.`;
+  if (!d.type) errs.type = "Choose a type.";
+  else if (!TYPES.includes(d.type)) errs.type = "That type is not recognised.";
+  if (d.location && d.location.length > MAX_LOCATION)
+    errs.location = `Location must not exceed ${MAX_LOCATION} characters.`;
+  return errs;
+}
+
+/* ── Backends ────────────────────────────────────────────────────────────────
+   Two implementations behind one interface, so the UI code never branches on
+   which is in use.                                                            */
+
+const DemoBackend = {
+  name: "demo",
+  _items: [],
+  _seeded: false,
+  _seed(){
+    if (this._seeded) return;
+    this._seeded = true;
+    const now = Date.now();
+    [["Cold Store Probe","sensor","active","Warehouse B"],
+     ["Loading Bay Gateway","gateway","active","Bay 3"],
+     ["Door Controller 12","controller","maintenance","North Entrance"],
+     ["Chiller Actuator","actuator","inactive","Plant Room"],
+     ["Ambient Sensor A","sensor","active","Floor 2"]]
+      .forEach(([name,type,status,location], i) => {
+        this._items.push({
+          deviceId: crypto.randomUUID(), name, type, status, location,
+          createdAt: new Date(now - (5-i)*36e5).toISOString(),
+          updatedAt: new Date(now - (5-i)*36e5).toISOString(),
+        });
+      });
+  },
+  async list({type, cursor}){
+    this._seed();
+    let items = this._items.slice().sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+    if (type) items = items.filter(d => d.type === type);
+    const start = cursor ? Number(cursor) : 0;
+    const page = items.slice(start, start + PAGE_SIZE);
+    const next = start + PAGE_SIZE < items.length ? String(start + PAGE_SIZE) : null;
+    return {items: page, count: page.length, nextToken: next, total: items.length};
+  },
+  async create(d){
+    this._seed();
+    const now = new Date().toISOString();
+    const rec = {deviceId: crypto.randomUUID(), name: d.name.trim(), type: d.type,
+                 status: d.status || "active", location: d.location || undefined,
+                 createdAt: now, updatedAt: now};
+    this._items.push(rec);
+    return rec;
+  },
+  async update(id, patch){
+    const rec = this._items.find(d => d.deviceId === id);
+    if (!rec) throw new ApiError(404, "Device not found.");
+    Object.assign(rec, patch, {updatedAt: new Date().toISOString()});
+    return rec;
+  },
+  async remove(id){
+    const i = this._items.findIndex(d => d.deviceId === id);
+    if (i === -1) throw new ApiError(404, "Device not found.");
+    this._items.splice(i, 1);
+  },
+};
+
+class ApiError extends Error {
+  constructor(status, message){ super(message); this.status = status; }
+}
+
+function LiveBackend(baseUrl, apiKey){
+  const base = baseUrl.replace(/\/+$/, "");
+  async function call(path, opts = {}){
+    let res;
+    try {
+      res = await fetch(base + path, {
+        ...opts,
+        headers: {"Content-Type": "application/json", "x-api-key": apiKey, ...(opts.headers || {})},
+      });
+    } catch {
+      // A network-level failure is usually CORS or a wrong URL, not a server error.
+      throw new ApiError(0, "Could not reach the API. Check the URL, and that the "
+        + "service allows requests from this page.");
+    }
+    if (res.status === 401 || res.status === 403)
+      throw new ApiError(res.status, "The API key was rejected.");
+    if (res.status === 204) return null;
+    let body = null;
+    try { body = await res.json(); } catch { /* empty or non-JSON body */ }
+    if (!res.ok)
+      throw new ApiError(res.status, body?.error?.message || body?.message || `Request failed (${res.status}).`);
+    return body;
+  }
+  return {
+    name: "live",
+    async list({type, cursor}){
+      const q = new URLSearchParams({limit: String(PAGE_SIZE)});
+      if (type) q.set("type", type);
+      if (cursor) q.set("nextToken", cursor);
+      const r = await call(`/devices?${q}`);
+      return {items: r.items || [], count: r.count || 0, nextToken: r.nextToken || null, total: null};
+    },
+    create: d => call("/devices", {method: "POST", body: JSON.stringify(d)}),
+    update: (id, patch) => call(`/devices/${encodeURIComponent(id)}`, {method: "PATCH", body: JSON.stringify(patch)}),
+    remove: id => call(`/devices/${encodeURIComponent(id)}`, {method: "DELETE"}),
+  };
+}
+
+/* ── UI ──────────────────────────────────────────────────────────────────── */
+
+let backend = DemoBackend;
+let cursor = null;
+let loaded = [];
+
+const EMPTY_DEFAULT = "No devices yet. Add one above.";
+let emptyMessage = EMPTY_DEFAULT;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg, bad){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.toggle("bad", !!bad);
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+function setMode(isLive, host){
+  $("mode-label").textContent = isLive ? "Connected" : "Demo mode";
+  $("banner").classList.toggle("live", isLive);
+  $("banner-title").textContent = isLive
+    ? `Connected to ${host}`
+    : "Demo mode — nothing is saved to a server";
+  $("banner-body").textContent = isLive
+    ? "Changes are sent to the live service and saved for real."
+    : "Everything you do here stays in this browser tab and disappears when you close it. "
+      + "The rules that accept or reject your input are the same ones the real service uses. "
+      + "To point this at a live deployment, open “Connect to a live API” below.";
+}
+
+// Live backend selected, but the first call did not come back. Say so rather
+// than leaving the green "Connected" banner over an empty table.
+function setConnectionFailed(host){
+  $("mode-label").textContent = "Not connected";
+  $("banner").classList.remove("live");
+  $("banner-title").textContent = `Could not reach ${host}`;
+  $("banner-body").textContent =
+    "The address is saved for this tab, but the service did not answer. Check the base URL "
+    + "and the API key below, then press Connect again — or press Use demo mode to go back to "
+    + "the in-browser example data.";
+}
+
+function fmtDate(iso){
+  try { return new Date(iso).toLocaleDateString(undefined, {day:"numeric", month:"short"}); }
+  catch { return "—"; }
+}
+
+function render(){
+  const tbody = $("rows");
+  tbody.replaceChildren();
+  loaded.forEach(d => {
+    const tr = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    const nm = document.createElement("div");
+    nm.className = "name"; nm.textContent = d.name;
+    const id = document.createElement("div");
+    id.className = "id"; id.textContent = (d.deviceId || "").slice(0, 8);
+    nameCell.append(nm, id);
+
+    const typeCell = document.createElement("td");
+    typeCell.textContent = d.type;
+
+    const statusCell = document.createElement("td");
+    const sel = document.createElement("select");
+    sel.className = "sm";
+    sel.setAttribute("aria-label", `Status for ${d.name}`);
+    STATUSES.forEach(s => {
+      const o = document.createElement("option");
+      o.value = s; o.textContent = s[0].toUpperCase() + s.slice(1);
+      o.selected = s === d.status;
+      sel.append(o);
+    });
+    sel.addEventListener("change", async () => {
+      const prev = d.status;
+      sel.disabled = true;
+      try {
+        await backend.update(d.deviceId, {status: sel.value});
+        d.status = sel.value;
+        toast(`${d.name} is now ${sel.value}.`);
+      } catch (e) {
+        sel.value = prev;
+        toast(e.message, true);
+      } finally { sel.disabled = false; }
+    });
+    statusCell.append(sel);
+
+    const locCell = document.createElement("td");
+    locCell.className = "hide-sm";
+    locCell.textContent = d.location || "—";
+
+    const dateCell = document.createElement("td");
+    dateCell.className = "hide-sm count";
+    dateCell.textContent = fmtDate(d.createdAt);
+
+    const actCell = document.createElement("td");
+    const del = document.createElement("button");
+    del.className = "sm danger"; del.textContent = "Remove";
+    del.addEventListener("click", async () => {
+      if (!confirm(`Remove “${d.name}”? This cannot be undone.`)) return;
+      del.disabled = true;
+      try {
+        await backend.remove(d.deviceId);
+        loaded = loaded.filter(x => x.deviceId !== d.deviceId);
+        render();
+        toast(`${d.name} removed.`);
+      } catch (e) { toast(e.message, true); del.disabled = false; }
+    });
+    actCell.append(del);
+
+    tr.append(nameCell, typeCell, statusCell, locCell, dateCell, actCell);
+    tbody.append(tr);
+  });
+
+  $("empty").textContent = emptyMessage;
+  $("empty").hidden = loaded.length > 0;
+  $("count").textContent = loaded.length
+    ? `${loaded.length} shown` : "";
+  $("more").hidden = !cursor;
+}
+
+// Returns true only if the listing actually came back. Callers rely on that:
+// telling someone "connected" after a failed load is worse than the failure.
+async function load(reset){
+  if (reset){ cursor = null; loaded = []; }
+  $("refresh").disabled = true; $("more").disabled = true;
+  try {
+    const r = await backend.list({type: $("filter-type").value, cursor});
+    loaded = loaded.concat(r.items);
+    cursor = r.nextToken;
+    emptyMessage = EMPTY_DEFAULT;
+    render();
+    return true;
+  } catch (e) {
+    toast(e.message, true);
+    // Whatever is on screen came from a different backend or an earlier page.
+    // Leaving it up would show stale rows under a "connected" banner.
+    if (reset){
+      loaded = []; cursor = null;
+      emptyMessage = `Could not load devices — ${e.message}`;
+    }
+    render();
+    if (e.status === 401 || e.status === 403 || e.status === 0) $("conn-details").open = true;
+    return false;
+  } finally {
+    $("refresh").disabled = false; $("more").disabled = false;
+  }
+}
+
+function showErrors(errs){
+  ["name","type","location"].forEach(f => {
+    const el = $("e-" + f), input = $("f-" + f);
+    if (el) el.textContent = errs[f] || "";
+    if (input) input.setAttribute("aria-invalid", errs[f] ? "true" : "false");
+  });
+}
+
+$("add-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const payload = {
+    name: $("f-name").value,
+    type: $("f-type").value,
+    status: $("f-status").value,
+    location: $("f-location").value.trim() || undefined,
+  };
+  const errs = validate(payload);
+  showErrors(errs);
+  if (Object.keys(errs).length){
+    const first = $("f-" + Object.keys(errs)[0]);
+    if (first) first.focus();
+    return;
+  }
+  payload.name = payload.name.trim();
+  $("add-btn").disabled = true;
+  try {
+    await backend.create(payload);
+    $("add-form").reset();
+    showErrors({});
+    toast(`${payload.name} added.`);
+    await load(true);
+    $("f-name").focus();
+  } catch (e) {
+    toast(e.message, true);
+  } finally { $("add-btn").disabled = false; }
+});
+
+$("refresh").addEventListener("click", () => load(true));
+$("more").addEventListener("click", () => load(false));
+$("filter-type").addEventListener("change", () => load(true));
+
+$("connect").addEventListener("click", async () => {
+  const url = $("api-url").value.trim(), key = $("api-key").value.trim();
+  if (!url){ toast("Enter the API base URL.", true); return; }
+  backend = LiveBackend(url, key);
+  let host = url;
+  try { host = new URL(url).host; } catch { /* keep the raw string */ }
+  sessionStorage.setItem("dr_url", url);
+  sessionStorage.setItem("dr_key", key);
+  setMode(true, host);
+  $("connect").disabled = true;
+  try {
+    if (await load(true)) toast("Connected.");
+    else setConnectionFailed(host);
+  } finally { $("connect").disabled = false; }
+});
+
+$("disconnect").addEventListener("click", async () => {
+  backend = DemoBackend;
+  sessionStorage.removeItem("dr_url");
+  sessionStorage.removeItem("dr_key");
+  setMode(false);
+  await load(true);
+  toast("Back in demo mode.");
+});
+
+// Restore a connection for this tab, if one was set before a reload.
+(function init(){
+  const url = sessionStorage.getItem("dr_url");
+  if (url){
+    $("api-url").value = url;
+    $("api-key").value = sessionStorage.getItem("dr_key") || "";
+    backend = LiveBackend(url, $("api-key").value);
+    let host = url; try { host = new URL(url).host; } catch { /* noop */ }
+    setMode(true, host);
+    load(true).then(ok => { if (!ok) setConnectionFailed(host); });
+  } else {
+    setMode(false);
+    load(true);
+  }
+})();
+</script>
+</body>
+</html>

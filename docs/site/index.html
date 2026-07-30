@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230969da'/%3E%3Crect x='4' y='4.5' width='8' height='7' rx='1' fill='%23fff'/%3E%3C/svg%3E">
 <title>Device Registry API — Joun Mikhail</title>
 <style>
   :root{
@@ -78,6 +79,11 @@ controllers — and lets other software add, look up, search, update and remove 
 It is the address book behind the hardware.</p>
 
 <div class="grid">
+  <a class="card" href="./app.html">
+    <h3>Try it in your browser →</h3>
+    <p>Add, filter and remove devices through a working interface. No account, no install —
+    it runs a demo entirely in the page, and can be pointed at a real deployment.</p>
+  </a>
   <a class="card" href="./api/">
     <h3>API documentation →</h3>
     <p>Every endpoint, request and response, generated from the project's OpenAPI 3.0 contract.</p>
@@ -101,9 +107,11 @@ It is the address book behind the hardware.</p>
   This site is generated from the repository on every push: the API documentation is
   rendered from the real OpenAPI contract, and the coverage report is produced by
   actually running the test suite in CI. The API itself is <em>not</em> deployed to a
-  public address — a permanently running cloud environment costs money, and no
-  authentication layer has been built yet, so exposing it publicly would be the wrong
-  call. Everything shown here is generated from code and tests, never hand-written.
+  public address — a permanently running cloud environment costs money — so the
+  interface above runs its demo inside your browser rather than against a server. The
+  validation rules it applies are the same ones the service enforces, and the
+  <em>Connect to a live API</em> panel points it at a real deployment when there is one.
+  Everything shown here is generated from code and tests, never hand-written.
 </div>
 
 <h2>What the tests report</h2>

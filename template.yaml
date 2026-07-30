@@ -38,6 +38,15 @@ Parameters:
       timeout, so 3s of p99 means the slow path is within a factor of three of
       timing out.
 
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "https://joun-mikhail.github.io"
+    Description: >-
+      Origins permitted to call the API from a browser. Defaults to the GitHub
+      Pages site that hosts the management UI. Not "*": the API is reachable with
+      a single shared key, so an unrestricted origin would let any page a caller
+      visits drive the API with a key their browser already holds.
+
   Environment:
     Type: String
     Default: dev
@@ -232,6 +241,14 @@ Resources:
     Properties:
       StageName: !Ref Environment
       Description: HTTP API for the Device Registry service.
+      # API Gateway answers the CORS preflight itself — the OPTIONS request never
+      # reaches a Lambda, and never reaches the authorizer. Without this block
+      # there is no preflight response at all and every browser call fails.
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowHeaders: [content-type, x-api-key]
+        AllowMethods: [GET, POST, PATCH, DELETE, OPTIONS]
+        MaxAge: 300
       Auth:
         # Applied to every route by default, so adding a route cannot
         # accidentally leave it unauthenticated.
