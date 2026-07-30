@@ -64,7 +64,7 @@ After the run completes (green tick):
 ...
 59 passed in 28.12s
 Total coverage: 87.30%
-Required test coverage of 80% reached.
+Required test coverage of 91% reached.
 ```
 
 ## What the deploy output should look like

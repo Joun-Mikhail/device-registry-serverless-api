@@ -40,7 +40,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Generate coverage report
-        run: pytest tests/unit/ --cov=src --cov-report=html:_site/coverage --cov-fail-under=80
+        run: pytest tests/unit/ --cov=src --cov-report=html:_site/coverage --cov-fail-under=91
 
       - name: Assemble site
         run: |

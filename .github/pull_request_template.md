@@ -15,7 +15,7 @@
 <!-- Paste the actual output rather than asserting it passed. -->
 
 ```
-pytest tests/unit/ --cov=src --cov-fail-under=80
+pytest tests/unit/ --cov=src --cov-fail-under=91
 pytest tests/contract --no-cov
 ruff check .
 ```

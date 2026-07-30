@@ -56,7 +56,7 @@ jobs:
           pytest tests/unit/ \
             --cov=src \
             --cov-report=term-missing \
-            --cov-fail-under=80 \
+            --cov-fail-under=91 \
             -v
 
   contract-test:
