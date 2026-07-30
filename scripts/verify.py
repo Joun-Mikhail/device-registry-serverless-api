@@ -28,12 +28,18 @@ check("LOG_LEVEL env var", "LOG_LEVEL: INFO" in tmpl)
 check("128MB memory", "MemorySize: 128" in tmpl)
 check("PAY_PER_REQUEST", "PAY_PER_REQUEST" in tmpl)
 check("DeletionPolicy Retain", "DeletionPolicy: Retain" in tmpl)
-check("5 log groups with 7-day retention", tmpl.count("RetentionInDays: 7") == 5)
+check("6 log groups with 7-day retention", tmpl.count("RetentionInDays: 7") == 6)
+check("API key secret is generated, not hardcoded", "GenerateSecretString" in tmpl)
+check("No literal secret value in template",
+      re.search(r"^\s*SecretString:", tmpl, re.MULTILINE) is None)
+check("Authorizer guards the API by default", "DefaultAuthorizer: ApiKeyAuthorizer" in tmpl)
+check("Authorizer reads the secret by ARN only", "API_KEY_SECRET_ARN: !Ref ApiKeySecret" in tmpl)
 check("python3.12 runtime", "python3.12" in tmpl)
 check("All 5 functions", all(f in tmpl for f in [
     "CreateDeviceFunction", "GetDeviceFunction", "ListDevicesFunction",
     "UpdateDeviceFunction", "DeleteDeviceFunction"
 ]))
+check("Authorizer function present", "ApiKeyAuthorizerFunction" in tmpl)
 
 # ── GitHub Actions workflow ───────────────────────────────────────────────
 print("\n.github/workflows/deploy.yml")

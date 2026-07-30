@@ -20,6 +20,7 @@ Then, in another terminal:
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import re
@@ -125,9 +126,31 @@ def _build_event(method: str, path: str, query: str, path_params: dict, body: st
 class Handler(BaseHTTPRequestHandler):
     server_version = "DeviceRegistryLocal/1.0"
 
+    # Set from --api-key. None means the API is open, matching a stack deployed
+    # before the authorizer existed.
+    api_key: str | None = None
+
+    def _authorized(self) -> bool:
+        """Mirror the deployed Lambda authorizer: same header, same comparison."""
+        if self.api_key is None:
+            return True
+        presented = None
+        for name in self.headers:
+            if name.lower() == "x-api-key":
+                presented = self.headers[name]
+                break
+        return bool(presented) and hmac.compare_digest(presented, self.api_key)
+
     def _dispatch(self, method: str) -> None:
         raw = self.path.split("?", 1)
         path, query = raw[0], (raw[1] if len(raw) > 1 else "")
+
+        if not self._authorized():
+            self._respond(
+                401,
+                json.dumps({"error": {"code": "UNAUTHORIZED", "message": "A valid x-api-key header is required."}}),
+            )
+            return
 
         handler, path_params = _resolve(method, path)
         if handler is None:
@@ -185,7 +208,13 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--seed", action="store_true", help="Insert a few example devices on startup.")
+    parser.add_argument(
+        "--api-key",
+        help="Require this value in the x-api-key header, mirroring the deployed "
+             "Lambda authorizer. Omit to leave the local API open.",
+    )
     args = parser.parse_args()
+    Handler.api_key = args.api_key
 
     with mock_aws():
         _create_table()
@@ -207,6 +236,10 @@ def main() -> int:
         server = HTTPServer((args.host, args.port), Handler)
         print(f"Device Registry API listening on http://{args.host}:{args.port}")
         print("DynamoDB is simulated in memory (moto). Data is lost on exit.")
+        if args.api_key:
+            print("Authentication is ON: send  -H 'x-api-key: <key>'  with every request.")
+        else:
+            print("Authentication is OFF. Pass --api-key to require one.")
         print("Press Ctrl+C to stop.\n")
         try:
             server.serve_forever()
