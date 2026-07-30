@@ -1,6 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 VALID_TYPES = {"sensor", "actuator", "gateway", "controller"}
 VALID_STATUSES = {"active", "inactive", "maintenance"}
@@ -21,9 +22,10 @@ class Device:
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
-    def to_item(self) -> dict:
+    def to_item(self) -> dict[str, Any]:
         """Serialize to DynamoDB item format."""
-        item = {
+        # Values are heterogeneous: metadata is a nested object, the rest are strings.
+        item: dict[str, Any] = {
             "deviceId": self.device_id,
             "name": self.name,
             "type": self.type,
@@ -37,7 +39,7 @@ class Device:
             item["metadata"] = self.metadata
         return item
 
-    def to_response(self) -> dict:
+    def to_response(self) -> dict[str, Any]:
         """Serialize to API response format."""
         return self.to_item()
 

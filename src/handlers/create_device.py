@@ -3,7 +3,7 @@ import json
 from models.device import DEFAULT_STATUS, Device
 from repositories.device_repository import DeviceAlreadyExistsError, get_repository
 from utils.logging import log_invocation
-from utils.response import conflict, error, internal_error, success
+from utils.response import VALIDATION_FALLBACK, conflict, error, internal_error, success
 from validation.device_validator import validate_create_payload
 
 
@@ -16,7 +16,7 @@ def handler(event: dict, context) -> dict:
 
     valid, message = validate_create_payload(body)
     if not valid:
-        return error(message)
+        return error(message or VALIDATION_FALLBACK)
 
     device = Device(
         name=body["name"].strip(),

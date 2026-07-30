@@ -20,6 +20,12 @@ CODE_NOT_FOUND = "NOT_FOUND"
 CODE_CONFLICT = "CONFLICT"
 CODE_INTERNAL = "INTERNAL_ERROR"
 
+# The validators return (False, message) on failure, so a caller reaching an error
+# path always has a message. This fallback exists so a validator that ever returned
+# (False, None) produces a clear 400 instead of a TypeError, and so the type checker
+# can see that `error` is never handed None.
+VALIDATION_FALLBACK = "The request failed validation."
+
 
 def success(body: dict | list, status_code: int = 200) -> dict:
     return {
