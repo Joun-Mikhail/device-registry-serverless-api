@@ -23,7 +23,7 @@ ruff check .
 ## Checklist
 
 - [ ] Tests cover the change, and a bug fix has a test that fails without it
-- [ ] Coverage is still at or above 80%
+- [ ] Coverage is still at or above 91%, the floor pytest.ini and the workflows share
 - [ ] `ruff check .` is clean, with any new `# noqa` carrying a reason
 - [ ] `docs/openapi.yaml` updated if a response shape changed
 - [ ] README updated if behaviour, counts, or structure changed
