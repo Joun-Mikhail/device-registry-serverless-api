@@ -118,8 +118,8 @@ mean something is broken; neither I nor anyone else can set it to green by hand.
 This is the real, unedited output from running the test suite:
 
 ```
-============================ 112 passed in 9.40s ===============================
-Required test coverage of 80% reached. Total coverage: 91.87%
+============================= 112 passed in 14.03s =============================
+Required test coverage of 91% reached. Total coverage: 91.92%
 ```
 
 ```
@@ -127,7 +127,7 @@ Required test coverage of 80% reached. Total coverage: 91.87%
 ```
 
 125 automated checks, all passing. The build is configured to **fail** if coverage
-drops below 80%, so the number cannot quietly rot.
+drops below 91%, so the number cannot quietly rot.
 
 **3 — What is being checked.**
 
@@ -764,6 +764,25 @@ In priority order:
 2. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
 3. **Dead-letter queues** — if the API grows to include async/event-driven patterns.
 4. **CloudWatch metrics & alarms** — error-rate / p95-latency alarms (needs a live stack).
+
+---
+
+## Design trade-offs
+
+The choices worth defending are written down as short ADRs in
+[`docs/decisions/`](docs/decisions/) — context, decision, and the consequences
+including the ones that are inconvenient.
+
+| # | Decision | The trade |
+|---|---|---|
+| [0001](docs/decisions/0001-one-lambda-per-endpoint.md) | One Lambda per endpoint | Per-route IAM and failure isolation, paid for in cold starts and duplicated artifacts |
+| [0002](docs/decisions/0002-sam-over-cdk-and-terraform.md) | SAM over CDK/Terraform | A template that reads top to bottom, at the cost of five near-identical function blocks |
+| [0003](docs/decisions/0003-oidc-over-stored-keys.md) | GitHub OIDC over stored keys | No long-lived credential exists, at the cost of one-time IAM setup |
+| [0004](docs/decisions/0004-layered-architecture.md) | Layered architecture | Pure, fast-to-test validation, at the cost of indirection |
+| [0005](docs/decisions/0005-gsi-key-design.md) | One GSI on `type` + `createdAt` | Filtered reads become Queries; combined filters still need a filter expression |
+| [0006](docs/decisions/0006-opaque-pagination-token.md) | Opaque base64 `nextToken` | Clients cannot depend on key internals; the token is encoded, not signed |
+| [0007](docs/decisions/0007-api-key-over-cognito.md) | API key, not Cognito | Correct for machine-to-machine; gives up per-caller identity |
+| [0008](docs/decisions/0008-per-function-iam.md) | Per-function IAM | Read paths cannot write; update and delete are still broader than ideal |
 
 ---
 
