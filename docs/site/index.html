@@ -67,7 +67,7 @@
   <p class="sub">A serverless REST API for managing IoT devices — Python, AWS Lambda, DynamoDB, deployed with AWS SAM.</p>
   <div class="badges">
     <a href="https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg"></a>
-    <img alt="Coverage 91%" src="https://img.shields.io/badge/coverage-91%25-brightgreen">
+    <img alt="Coverage 92%" src="https://img.shields.io/badge/coverage-92%25-brightgreen">
     <img alt="Python 3.12" src="https://img.shields.io/badge/python-3.12-blue">
     <img alt="MIT" src="https://img.shields.io/badge/license-MIT-green">
   </div>
@@ -108,8 +108,8 @@ It is the address book behind the hardware.</p>
 
 <h2>What the tests report</h2>
 <p>Output from the test suite, reproduced verbatim:</p>
-<pre><code>============================= <span class="pass">99 passed</span> in 12.81s ==============================
-Required test coverage of 80% reached. Total coverage: 91.07%
+<pre><code>============================= <span class="pass">112 passed</span> in 9.40s ===============================
+Required test coverage of 80% reached. Total coverage: 91.87%
 
 ============================== <span class="pass">13 passed</span> in 2.83s ==============================</code></pre>
 
@@ -121,6 +121,7 @@ Required test coverage of 80% reached. Total coverage: 91.07%
   <tr><td>Search and paging</td><td>6</td><td>Long lists come back in pages, not all at once</td></tr>
   <tr><td>Data structure</td><td>6</td><td>Records keep their shape when written and read back</td></tr>
   <tr><td>Diagnostic logging</td><td>4</td><td>Every request leaves a traceable record</td></tr>
+  <tr><td>API key authentication</td><td>13</td><td>Requests without a valid key are refused, and a misconfigured authorizer refuses rather than allowing traffic</td></tr>
   <tr><td>Published contract</td><td>13</td><td>Replies still match the documented API shape</td></tr>
 </table>
 
@@ -128,6 +129,9 @@ Required test coverage of 80% reached. Total coverage: 91.07%
 <p>The service runs locally with no AWS account required, backed by an in-memory
 DynamoDB simulator. This is a real session against the real handler code:</p>
 <img class="shot" src="./images/api-session.png" alt="Terminal session showing real API requests and responses">
+<p>Every route requires an API key. Without a valid one the request is refused
+before it reaches any handler:</p>
+<img class="shot" src="./images/api-auth.png" alt="Terminal session showing 401 responses without a valid API key">
 <p>Reproduce it in two commands:</p>
 <pre><code>pip install -r requirements-dev.txt
 python scripts/local_server.py --seed</code></pre>
@@ -140,6 +144,7 @@ python scripts/local_server.py --seed</code></pre>
   <tr><td>Storage</td><td>DynamoDB, with a secondary index for filtering by device type</td></tr>
   <tr><td>Infrastructure</td><td>AWS SAM — every resource declared in <code>template.yaml</code></td></tr>
   <tr><td>CI</td><td>GitHub Actions: tests, coverage gate, lint, secret scanning</td></tr>
+  <tr><td>API auth</td><td>Lambda authorizer validating an API key held in AWS Secrets Manager</td></tr>
   <tr><td>Deployment auth</td><td>GitHub OIDC — no long-lived AWS keys stored anywhere</td></tr>
 </table>
 

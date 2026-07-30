@@ -1,7 +1,7 @@
 # Serverless Device Registry API
 
 [![CI](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](https://github.com/Joun-Mikhail/device-registry-serverless-api/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -20,9 +20,12 @@
   environment in `eu-central-1` and is deployed **manually** via
   *Actions → Deploy → Run workflow* using GitHub OIDC. **No public endpoint is
   published in this repository**, so there is no live URL to try.
-- **Out of scope:** API authentication (the HTTP API has no authorizer), a
-  multi-environment promotion pipeline, custom domains, autoscaling and cost
-  tuning, and production-grade alerting. See
+- **Authentication:** every route is guarded by a Lambda authorizer checking a
+  shared API key held in AWS Secrets Manager. The key is generated at deploy time
+  and never appears in this repository.
+- **Out of scope:** per-caller credentials and scopes (the key is shared, not
+  per-client), a multi-environment promotion pipeline, custom domains, autoscaling
+  and cost tuning, and production-grade alerting. See
   [Future Improvements](#future-improvements) for the intended order of work.
 
 ---
@@ -82,14 +85,14 @@ The rest of this document uses industry terms. Here is what they mean:
 | **Infrastructure as code** | The cloud setup is written down in a file (`template.yaml`) rather than clicked together by hand — so it is reviewable, repeatable, and hard to get subtly wrong. |
 | **CI / CI pipeline** | An automated checker. Every time the code changes, a robot re-runs all the tests and refuses the change if anything breaks. |
 | **Unit / contract test** | Automated checks. A unit test verifies one small behaviour; a contract test verifies the service still replies in the shape it promised. |
-| **Coverage** | What share of the code the automated tests actually exercise. Here: 91%. |
+| **Coverage** | What share of the code the automated tests actually exercise. Here: 92%. |
 
 ### What this demonstrates
 
 | Skill shown | Where to see it |
 |---|---|
 | Designing a web service others can build against | [API Endpoints](#api-endpoints) — every action, with example requests and replies |
-| Writing automated tests, not just code | 112 tests total, all passing, [see below](#proof-you-can-check-yourself) |
+| Writing automated tests, not just code | 125 tests total, all passing, [see below](#proof-you-can-check-yourself) |
 | Setting up cloud infrastructure reproducibly | `template.yaml` defines every cloud resource |
 | Automating quality checks | [CI/CD Pipeline](#cicd-pipeline) — tests run automatically on every change |
 | Handling failure deliberately | [Validation Rules](#validation-rules) and the error paths in the diagram above |
@@ -115,15 +118,15 @@ mean something is broken; neither I nor anyone else can set it to green by hand.
 This is the real, unedited output from running the test suite:
 
 ```
-============================= 99 passed in 12.81s ==============================
-Required test coverage of 80% reached. Total coverage: 91.07%
+============================ 112 passed in 9.40s ===============================
+Required test coverage of 80% reached. Total coverage: 91.87%
 ```
 
 ```
 ============================== 13 passed in 2.83s ==============================
 ```
 
-112 automated checks, all passing. The build is configured to **fail** if coverage
+125 automated checks, all passing. The build is configured to **fail** if coverage
 drops below 80%, so the number cannot quietly rot.
 
 **3 — What is being checked.**
@@ -136,6 +139,7 @@ drops below 80%, so the number cannot quietly rot.
 | Search and paging | 6 | Long lists are returned in pages rather than all at once |
 | Data structure | 6 | Device records keep their shape when saved and read back |
 | Diagnostic logging | 4 | Every request leaves a traceable record |
+| API key authentication | 13 | Requests without a valid key are refused, and a misconfigured authorizer refuses rather than letting traffic through |
 | Published contract | 13 | Replies still match the shape the service promised |
 
 **4 — The API, actually running.** You can run it yourself in two commands, with no
@@ -153,14 +157,21 @@ output is reproduced exactly as the server returned it:
 
 ![A terminal session showing real requests to the API and the responses it returned](docs/evidence/images/api-session.png)
 
-**5 — The coverage report, generated from the test run:**
+**5 — Authentication, refusing what it should.** Every route requires an
+`x-api-key` header. The same server, started with `--api-key`, rejects a request
+with no key and one with the wrong key, and serves the one that presents the
+right key:
+
+![Terminal session showing 401 responses without a valid API key and a 200 with one](docs/evidence/images/api-auth.png)
+
+**6 — The coverage report, generated from the test run:**
 
 ![Per-file test coverage report showing 91% overall](docs/evidence/images/coverage-report.png)
 
 It is also [published live](https://joun-mikhail.github.io/device-registry-serverless-api/coverage/),
 regenerated automatically every time the code changes.
 
-**6 — The full history is public.** Every change is a separate, reviewable entry
+**7 — The full history is public.** Every change is a separate, reviewable entry
 in the [commit history](https://github.com/Joun-Mikhail/device-registry-serverless-api/commits/main),
 each explaining what changed and why.
 
@@ -276,7 +287,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Expected output: `99 passed, coverage 91%`.
+Expected output: `112 passed, coverage 92%`.
 
 ---
 
@@ -284,6 +295,44 @@ Expected output: `99 passed, coverage 91%`.
 
 All requests and responses use `Content-Type: application/json`.
 Responses include CORS headers (`Access-Control-Allow-Origin: *`).
+
+### Authentication
+
+Every route requires an `x-api-key` header. The key is generated by
+CloudFormation at deploy time and stored in AWS Secrets Manager — it is not in
+this repository. Retrieve it from the stack output:
+
+```bash
+aws secretsmanager get-secret-value \
+  --secret-id "$(aws cloudformation describe-stacks \
+      --stack-name device-registry-dev \
+      --query "Stacks[0].Outputs[?OutputKey=='ApiKeySecretArn'].OutputValue" \
+      --output text)" \
+  --query SecretString --output text
+```
+
+Then send it with each request:
+
+```bash
+curl -H "x-api-key: <key>" https://<api-url>/dev/devices
+```
+
+A request without a valid key is rejected by the Lambda authorizer **before it
+reaches any handler**, so it never touches DynamoDB:
+
+```json
+{ "message": "Unauthorized" }
+```
+
+That body comes from API Gateway, not from this service's error model — which is
+why it does not carry the `error.code` envelope the endpoints below use.
+
+To exercise this locally, start the server with a key of your choosing:
+
+```bash
+python scripts/local_server.py --seed --api-key "demo-key-abc123"
+curl -H 'x-api-key: demo-key-abc123' http://127.0.0.1:8000/devices
+```
 
 ### Create a device — `POST /devices`
 
@@ -420,7 +469,7 @@ curl -X DELETE https://<api-url>/dev/devices/a3f1c2d4-...
 ```
 tests/
 ├── conftest.py                      Shared fixtures (mock DynamoDB via moto)
-├── unit/                            99 tests
+├── unit/                           112 tests
 │   ├── test_device_model.py         Dataclass serialisation (6 tests)
 │   ├── test_device_validator.py     Validation — create, update, list params (30 tests)
 │   ├── test_device_repository.py    DynamoDB ops, GSI query, pagination, conflict (19 tests)
@@ -599,7 +648,12 @@ serialized traceback (never returned to the caller).
 | Secrets in code | None — `DEVICES_TABLE` injected by SAM at deploy time |
 | Log retention | Log groups declared with 7-day retention to bound the data exposure window |
 | CORS | `Access-Control-Allow-Origin: *` — permissive by design for `dev`; restrict before any public exposure |
-| **API authentication** | **None — `template.yaml` declares no authorizer, so a deployed stack would expose an open HTTP API.** See Future Improvements item 1 before deploying anywhere public. |
+| API authentication | Lambda authorizer on every route, validating `x-api-key` against a Secrets Manager secret. Applied as `DefaultAuthorizer`, so a newly added route is guarded unless it opts out. |
+| API key storage | Generated by CloudFormation at deploy time. Only the secret's ARN reaches the authorizer's environment; the value is never in the template, the repository, or an environment variable. |
+| Key comparison | Constant-time (`hmac.compare_digest`), so response timing does not leak how much of a guessed key was correct. |
+| Authorizer failure mode | Fails closed. A missing secret, an AWS error, or a malformed event denies rather than raising or allowing. |
+| Secret redaction | The AWS SDK's wire loggers are pinned to INFO, because botocore logs the `GetSecretValue` response body — including the key — at DEBUG, and `LOG_LEVEL` is operator-controlled. |
+| **Per-caller identity** | **Not implemented — the key is shared across all clients, so requests cannot be attributed to a caller and revoking one caller revokes all.** Acceptable for a single-consumer `dev` environment; see Future Improvements. |
 
 ---
 
@@ -674,7 +728,7 @@ sam delete --stack-name device-registry-dev --region eu-central-1
 │   ├── validation/                 Input validation (create, update, list params)
 │   └── utils/                      JSON logging, HTTP responses, pagination cursor
 ├── tests/
-│   ├── unit/                       99 tests, moto-mocked DynamoDB
+│   ├── unit/                      112 tests, moto-mocked DynamoDB
 │   ├── contract/                   13 tests, response ↔ OpenAPI conformance
 │   └── integration/                10 tests, skipped unless API_BASE_URL is set
 ├── template.yaml                   AWS SAM infrastructure definition
@@ -701,7 +755,10 @@ filtering · ✅ OpenAPI 3.0 contract + contract tests in CI · ✅ structured e
 
 In priority order:
 
-1. **API authentication** — the template declares no authorizer. Add an IAM authorizer
+1. **Per-caller credentials** — the API key is shared across all clients, so calls
+   cannot be attributed and revocation is all-or-nothing. Issue a key per consumer,
+   or move to a JWT authorizer backed by an identity provider. The previous item
+   here — adding any authentication at all — is now done. Add an IAM authorizer
    (`AuthorizationType: AWS_IAM`) for service-to-service callers, or a Lambda authorizer
    validating an API key / JWT for external clients. Required before any public exposure.
 2. **Eliminate the unfiltered Scan** — materialised index for the no-filter list.
