@@ -40,6 +40,11 @@ check("All 5 functions", all(f in tmpl for f in [
     "UpdateDeviceFunction", "DeleteDeviceFunction"
 ]))
 check("Authorizer function present", "ApiKeyAuthorizerFunction" in tmpl)
+check("Alarms publish to an SNS topic", tmpl.count("AlarmActions: [!Ref AlarmTopic]") == 3)
+check("Alarm email is a parameter, not hardcoded",
+      "AlarmEmail:" in tmpl and "@" not in tmpl.split("AlarmEmail:")[1].split("ErrorAlarmThreshold")[0])
+check("Alarms do not page on no traffic", tmpl.count("TreatMissingData: notBreaching") == 3)
+check("Dashboard defined in the template", "AWS::CloudWatch::Dashboard" in tmpl)
 
 # ── GitHub Actions workflow ───────────────────────────────────────────────
 print("\n.github/workflows/deploy.yml")

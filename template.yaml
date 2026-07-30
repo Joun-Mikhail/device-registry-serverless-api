@@ -16,11 +16,38 @@ Globals:
         LOG_LEVEL: INFO
 
 Parameters:
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: >-
+      Address to notify when an alarm fires. Left empty by default so the stack
+      deploys without embedding a personal address in source control; set it at
+      deploy time with --parameter-overrides. When empty, alarms still fire and
+      are visible in the console, they just do not send mail.
+
+  ErrorAlarmThreshold:
+    Type: Number
+    Default: 1
+    Description: Lambda errors in a 5-minute window before the alarm fires.
+
+  DurationAlarmThresholdMs:
+    Type: Number
+    Default: 3000
+    Description: >-
+      p99 duration in milliseconds before the alarm fires. Functions have a 10s
+      timeout, so 3s of p99 means the slow path is within a factor of three of
+      timing out.
+
   Environment:
     Type: String
     Default: dev
     AllowedValues: [dev]
     Description: Deployment environment.
+
+Conditions:
+  # Only wire up the SNS subscription when an address was supplied, so the stack
+  # is deployable by anyone without editing it.
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
 
 Resources:
 
@@ -263,6 +290,164 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/device-registry-delete-${Environment}"
       RetentionInDays: 7
 
+  # ── Alerting ──────────────────────────────────────────────────────────────
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "device-registry-alarms-${Environment}"
+      DisplayName: Device Registry alarms
+
+  AlarmTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+      TopicArn: !Ref AlarmTopic
+
+  # Errors are summed across all five functions rather than alarmed per function:
+  # one alarm that means "something is broken" beats five that each mean "one
+  # route is broken", and the dashboard below shows which.
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "device-registry-${Environment}-lambda-errors"
+      AlarmDescription: >-
+        A Lambda function returned an unhandled error. Handled 4xx responses do
+        not count — this only fires on a genuine failure.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref ErrorAlarmThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      # Absence of data means no traffic, not an outage.
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "device-registry-${Environment}-lambda-p99-duration"
+      AlarmDescription: >-
+        p99 duration approaching the 10s function timeout. p99 rather than
+        Average, because an average stays healthy while the slowest requests
+        time out.
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: !Ref DurationAlarmThresholdMs
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  # PAY_PER_REQUEST still throttles: on-demand capacity ramps, so a sharp spike
+  # can be rejected before the table scales.
+  DynamoThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "device-registry-${Environment}-dynamodb-throttles"
+      AlarmDescription: DynamoDB rejected requests because the table was throttled.
+      Namespace: AWS/DynamoDB
+      MetricName: ThrottledRequests
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      Dimensions:
+        - Name: TableName
+          Value: !Ref DevicesTable
+      AlarmActions: [!Ref AlarmTopic]
+
+  # ── Dashboard ─────────────────────────────────────────────────────────────
+
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "device-registry-${Environment}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "Invocations by route",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": false,
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "device-registry-create-${Environment}", { "label": "create" } ],
+                  [ "...", "device-registry-get-${Environment}", { "label": "get" } ],
+                  [ "...", "device-registry-list-${Environment}", { "label": "list" } ],
+                  [ "...", "device-registry-update-${Environment}", { "label": "update" } ],
+                  [ "...", "device-registry-delete-${Environment}", { "label": "delete" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "Errors by route",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries", "stacked": true,
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "device-registry-create-${Environment}", { "label": "create" } ],
+                  [ "...", "device-registry-get-${Environment}", { "label": "get" } ],
+                  [ "...", "device-registry-list-${Environment}", { "label": "list" } ],
+                  [ "...", "device-registry-update-${Environment}", { "label": "update" } ],
+                  [ "...", "device-registry-delete-${Environment}", { "label": "delete" } ],
+                  [ "...", "device-registry-authorizer-${Environment}", { "label": "authorizer" } ]
+                ]
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "Duration p50 / p99 (all routes)",
+                "region": "${AWS::Region}",
+                "period": 300, "view": "timeSeries",
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", { "stat": "p50", "label": "p50" } ],
+                  [ ".", ".", { "stat": "p99", "label": "p99" } ]
+                ],
+                "annotations": {
+                  "horizontal": [
+                    { "label": "p99 alarm", "value": ${DurationAlarmThresholdMs} },
+                    { "label": "function timeout", "value": 10000 }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB consumed capacity and throttles",
+                "region": "${AWS::Region}",
+                "stat": "Sum", "period": 300, "view": "timeSeries",
+                "metrics": [
+                  [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${DevicesTable}", { "label": "read" } ],
+                  [ ".", "ConsumedWriteCapacityUnits", ".", ".", { "label": "write" } ],
+                  [ ".", "ThrottledRequests", ".", ".", { "label": "throttled", "color": "#d62728" } ]
+                ]
+              }
+            },
+            {
+              "type": "log", "x": 0, "y": 12, "width": 24, "height": 6,
+              "properties": {
+                "title": "Recent failures (status >= 500)",
+                "region": "${AWS::Region}",
+                "view": "table",
+                "query": "SOURCE '/aws/lambda/device-registry-create-${Environment}' | SOURCE '/aws/lambda/device-registry-get-${Environment}' | SOURCE '/aws/lambda/device-registry-list-${Environment}' | SOURCE '/aws/lambda/device-registry-update-${Environment}' | SOURCE '/aws/lambda/device-registry-delete-${Environment}' | fields @timestamp, operation, requestId, status, latencyMs | filter status >= 500 | sort @timestamp desc | limit 20"
+              }
+            }
+          ]
+        }
+
 Outputs:
   ApiBaseUrl:
     Description: Base URL for the Device Registry API.
@@ -273,6 +458,14 @@ Outputs:
       ARN of the generated API key. Read the value with:
       aws secretsmanager get-secret-value --secret-id <arn> --query SecretString --output text
     Value: !Ref ApiKeySecret
+
+  DashboardUrl:
+    Description: CloudWatch dashboard for this stack.
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=device-registry-${Environment}"
+
+  AlarmTopicArn:
+    Description: SNS topic the alarms publish to.
+    Value: !Ref AlarmTopic
 
   DevicesTableName:
     Description: DynamoDB table name.

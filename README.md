@@ -608,6 +608,12 @@ retention. They are created when the stack is deployed:
 | `/aws/lambda/device-registry-update-dev` | 7 days |
 | `/aws/lambda/device-registry-delete-dev` | 7 days |
 
+Alarms and a CloudWatch dashboard are defined in `template.yaml`, and the saved
+Logs Insights queries worth keeping are in
+[`docs/observability.md`](docs/observability.md) — including how to reconstruct a
+single request from its `requestId`, and error rate and latency percentiles by
+route.
+
 **Structured JSON logs.** Every handler is wrapped by the `log_invocation`
 decorator ([`src/utils/logging.py`](src/utils/logging.py)), which emits one JSON
 line per request so that, once deployed, CloudWatch Logs Insights can query by
