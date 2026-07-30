@@ -1,6 +1,21 @@
 version: 2
 updates:
+  # Python dependencies. Grouped so a routine week produces one reviewable PR
+  # rather than six.
   - package-ecosystem: pip
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      python-dependencies:
+        patterns: ["*"]
+
+  # Action versions drift silently and are a real supply-chain surface; a pinned
+  # action that is never updated is as much a risk as an unpinned one.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
