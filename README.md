@@ -5,7 +5,8 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**[→ Live project site](https://joun-mikhail.github.io/device-registry-serverless-api/)** — interactive API reference, live coverage report, and a plain-language overview.
+**[→ Try the app](https://joun-mikhail.github.io/device-registry-serverless-api/app.html)** — a working interface, no account or install needed ·
+**[→ Project site](https://joun-mikhail.github.io/device-registry-serverless-api/)** — API reference, live coverage report, plain-language overview.
 
 > A REST API for registering and managing IoT devices, built as a portfolio project
 > to practise serverless patterns end to end.
@@ -142,7 +143,21 @@ drops below 91%, so the number cannot quietly rot.
 | API key authentication | 13 | Requests without a valid key are refused, and a misconfigured authorizer refuses rather than letting traffic through |
 | Published contract | 13 | Replies still match the shape the service promised |
 
-**4 — The API, actually running.** You can run it yourself in two commands, with no
+**4 — Use it yourself, in your browser.** The
+[device manager](https://joun-mikhail.github.io/device-registry-serverless-api/app.html)
+needs no account, no install and no AWS: open it and add, filter, re-status or remove
+devices straight away. By default it runs a demo entirely inside the page — nothing is
+sent anywhere — but it enforces the *same* validation rules the service does, so a
+rejected name is rejected for the same reason it would be in production. The
+*Connect to a live API* panel points the same interface at a real deployment.
+
+![The device manager: a device list with type filter, an add form, and a banner explaining that demo mode saves nothing to a server](docs/evidence/images/web-ui-demo.png)
+
+Submitting an empty form shows what the service would say, before a request is sent:
+
+![The same form with "Name is required." and "Choose a type." shown under the two fields](docs/evidence/images/web-ui-validation.png)
+
+**5 — The API, actually running.** You can run it yourself in two commands, with no
 AWS account — an in-memory DynamoDB stands in for the real one, and every other
 layer is the code that would run in Lambda:
 
@@ -157,21 +172,21 @@ output is reproduced exactly as the server returned it:
 
 ![A terminal session showing real requests to the API and the responses it returned](docs/evidence/images/api-session.png)
 
-**5 — Authentication, refusing what it should.** Every route requires an
+**6 — Authentication, refusing what it should.** Every route requires an
 `x-api-key` header. The same server, started with `--api-key`, rejects a request
 with no key and one with the wrong key, and serves the one that presents the
 right key:
 
 ![Terminal session showing 401 responses without a valid API key and a 200 with one](docs/evidence/images/api-auth.png)
 
-**6 — The coverage report, generated from the test run:**
+**7 — The coverage report, generated from the test run:**
 
 ![Per-file test coverage report showing 91% overall](docs/evidence/images/coverage-report.png)
 
 It is also [published live](https://joun-mikhail.github.io/device-registry-serverless-api/coverage/),
 regenerated automatically every time the code changes.
 
-**7 — The full history is public.** Every change is a separate, reviewable entry
+**8 — The full history is public.** Every change is a separate, reviewable entry
 in the [commit history](https://github.com/Joun-Mikhail/device-registry-serverless-api/commits/main),
 each explaining what changed and why.
 

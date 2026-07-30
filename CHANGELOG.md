@@ -11,6 +11,17 @@ everything to date sits under Unreleased.
 ## [Unreleased]
 
 ### Added
+- **A browser interface** (`docs/site/app.html`), published at
+  [`/app.html`](https://joun-mikhail.github.io/device-registry-serverless-api/app.html),
+  so the project can be used without `curl`, an AWS account or an install. It runs a
+  demo backend entirely in the page by default and can be pointed at a real deployment
+  through a *Connect to a live API* panel. Its validation mirrors
+  `src/validation/device_validator.py`, so a rejection in the page is a rejection the
+  service would also make. Single file, no build step, no dependencies.
+- CORS configuration on the HTTP API (`AllowedOrigins` stack parameter, defaulting to
+  the project's GitHub Pages origin), without which a browser cannot call the service
+  at all. `scripts/local_server.py` now returns the matching headers on every response,
+  not only on the preflight.
 - **CloudWatch alarms and a dashboard**, defined in `template.yaml` so they are
   versioned with the stack rather than clicked together in the console. Alarms
   cover Lambda errors, p99 duration against the 10s timeout, and DynamoDB

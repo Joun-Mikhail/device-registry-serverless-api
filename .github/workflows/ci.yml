@@ -82,7 +82,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install ruff
-        run: pip install ruff
+        # From requirements-dev.txt, so the version CI enforces is the version
+        # contributors install. Bare `pip install ruff` drifts: the floor there is
+        # 0.16, and 0.15 reports E402 in scripts/local_server.py that 0.16 does not.
+        run: pip install "$(grep '^ruff' requirements-dev.txt)"
 
       - name: Ruff lint
         run: ruff check .

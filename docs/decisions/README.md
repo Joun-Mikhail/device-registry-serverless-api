@@ -15,3 +15,4 @@ revisit them.
 | [0006](0006-opaque-pagination-token.md) | Opaque base64 pagination token | Accepted |
 | [0007](0007-api-key-over-cognito.md) | API key authorizer, not Cognito | Accepted |
 | [0008](0008-per-function-iam.md) | Per-function IAM policies | Accepted, with a known gap |
+| [0009](0009-browser-client-with-demo-backend.md) | A browser client that ships its own demo backend | Accepted |

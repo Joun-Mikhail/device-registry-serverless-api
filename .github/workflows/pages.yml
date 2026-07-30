@@ -47,6 +47,10 @@ jobs:
           cp docs/site/index.html _site/index.html
           mkdir -p _site/api _site/images
           cp docs/site/api.html _site/api/index.html
+          # Published as a file, not a directory: app.html's relative links ("./",
+          # "./api/") then resolve the same way they do when the file is opened
+          # locally, so the page needs no path rewriting between the two.
+          cp docs/site/app.html _site/app.html
           cp docs/openapi.yaml  _site/api/openapi.yaml
           cp docs/evidence/images/*.png _site/images/
           # coverage.py writes a .gitignore that would exclude its own output.
