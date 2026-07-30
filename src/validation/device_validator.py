@@ -1,4 +1,6 @@
 
+from typing import Any
+
 from models.device import DEFAULT_STATUS, VALID_STATUSES, VALID_TYPES
 
 MAX_NAME_LENGTH = 100
@@ -8,14 +10,15 @@ DEFAULT_LIMIT = 25
 MAX_LIMIT = 100
 
 
-def validate_list_params(query: dict | None) -> tuple[bool, str | None, dict]:
+def validate_list_params(query: dict | None) -> tuple[bool, str | None, dict[str, Any]]:
     """Validate query-string parameters for the list endpoint.
 
     Returns (is_valid, error_message, parsed) where parsed contains the
     normalised 'limit' (int), 'type' (str or None), and 'next_token' (str or None).
     """
     query = query or {}
-    parsed = {"limit": DEFAULT_LIMIT, "type": None, "next_token": None}
+    # Mixed value types: limit is an int, type and next_token are optional strings.
+    parsed: dict[str, Any] = {"limit": DEFAULT_LIMIT, "type": None, "next_token": None}
 
     raw_limit = query.get("limit")
     if raw_limit is not None:

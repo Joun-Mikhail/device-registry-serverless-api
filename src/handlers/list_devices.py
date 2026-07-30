@@ -1,7 +1,7 @@
 from repositories.device_repository import get_repository
 from utils.logging import log_invocation
 from utils.pagination import decode_token, encode_token
-from utils.response import error, internal_error, success
+from utils.response import VALIDATION_FALLBACK, error, internal_error, success
 from validation.device_validator import validate_list_params
 
 
@@ -11,7 +11,7 @@ def handler(event: dict, context) -> dict:
 
     valid, message, params = validate_list_params(query)
     if not valid:
-        return error(message)
+        return error(message or VALIDATION_FALLBACK)
 
     try:
         start_key = decode_token(params["next_token"])

@@ -2,7 +2,7 @@ import json
 
 from repositories.device_repository import get_repository
 from utils.logging import log_invocation
-from utils.response import error, internal_error, not_found, success
+from utils.response import VALIDATION_FALLBACK, error, internal_error, not_found, success
 from validation.device_validator import validate_update_payload
 
 
@@ -23,7 +23,7 @@ def handler(event: dict, context) -> dict:
 
     valid, message = validate_update_payload(body)
     if not valid:
-        return error(message)
+        return error(message or VALIDATION_FALLBACK)
 
     # Build an immutable copy so the caller's dict is never mutated.
     updates = dict(body)
