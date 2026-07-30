@@ -9,7 +9,7 @@ jsonschema>=4.20.0
 PyYAML>=6.0.3
 
 # Type checking
-mypy>=1.19.0
+mypy>=2.3.0
 boto3-stubs[dynamodb,secretsmanager]>=1.43.0
 
 # Lint + secret scanning (Sprint 3)
