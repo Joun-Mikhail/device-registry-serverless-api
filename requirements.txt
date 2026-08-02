@@ -7,4 +7,4 @@
 # Note: the Python Lambda runtime already provides boto3. It is pinned here so the
 # local and CI environments match what tests were written against, rather than to
 # add it to the deployment package.
-boto3==1.43.56
+boto3==1.43.59
